@@ -1,14 +1,14 @@
-use crate::error::{CliError, Error};
+use crate::error::{Error, IOError};
 use crate::io::OutputDestination::{Console, File};
 
 pub fn read_code_file(path: &std::path::PathBuf) -> Result<String, Error> {
     std::fs::read_to_string(path).map_err(|e| {
-        let cli_error = match e.kind() {
-            std::io::ErrorKind::NotFound => CliError::CodeFileNotFound(e),
-            _ => CliError::FailedToReadCodeFile(e),
+        let error = match e.kind() {
+            std::io::ErrorKind::NotFound => IOError::CodeFileNotFound(e),
+            _ => IOError::FailedToReadCodeFile(e),
         };
 
-        Error::Utility(cli_error)
+        Error::IO(error)
     })
 }
 
@@ -35,8 +35,8 @@ pub fn write_output(
         },
         File(path) => {
             std::fs::write(&path, result).map_err(|e| {
-                let cli_error = CliError::FailedToWriteIntoOutputFile(e);
-                Error::Utility(cli_error)
+                let error = IOError::FailedToWriteIntoOutputFile(e);
+                Error::IO(error)
             })?;
         },
     }

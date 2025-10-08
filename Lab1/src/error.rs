@@ -3,12 +3,12 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("Utility error: {0}")]
-    Utility(CliError),
+    #[error("I/O error: {0}")]
+    IO(IOError),
 }
 
 #[derive(Debug, Error)]
-pub enum CliError {
+pub enum IOError {
     #[error("Code file not found. {0}")]
     CodeFileNotFound(io::Error),
 
