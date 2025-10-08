@@ -1,6 +1,6 @@
 [package]
 name = "Lab1"
-version = "1.0.0"
+version = "0.0.1"
 authors = ["Alex Kovalov <alexkovalevkpi@gmail.com>"]
 
 edition = "2024"
@@ -17,4 +17,5 @@ repository = "https://github.com/xairaven/KPI-SCS"
 workspace = true
 
 [dependencies]
+clap = { version = "4.5.48", features = ["derive"] }
 thiserror = "2.0.17"
