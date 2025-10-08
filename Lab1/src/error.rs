@@ -3,7 +3,7 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("I/O error: {0}")]
+    #[error("Type: I/O. {0}")]
     IO(IOError),
 }
 

@@ -1,10 +1,11 @@
 use crate::cli::Cli;
+use colored::Colorize;
 
 fn main() {
     let run_result = Cli::run();
 
     if let Err(e) = run_result {
-        eprintln!("{e}");
+        eprintln!("{}. {e}", "Error".red().bold());
     }
 }
 
