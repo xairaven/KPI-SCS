@@ -15,9 +15,14 @@ pub enum TokenType {
     Minus,
     Asterisk,
     Slash,
+    Percent,
 
     LeftParenthesis,
     RightParenthesis,
+
+    ExclamationMark,
+    Ampersand,
+    Pipe,
 
     Dot,
     Comma,
@@ -35,7 +40,7 @@ macro_rules! token {
     ($token_type:expr, $position:literal) => {
         Token {
             token_type: $token_type,
-            position: $position..$position + 1,
+            position: $position..($position + 1),
         }
     };
     ($token_type:expr, $position:expr) => {
@@ -86,8 +91,12 @@ pub fn tokenize(input: &str) -> Vec<Token> {
             '-' => token!(TokenType::Minus, index..index + 1),
             '*' => token!(TokenType::Asterisk, index..index + 1),
             '/' => token!(TokenType::Slash, index..index + 1),
+            '%' => token!(TokenType::Percent, index..index + 1),
             '(' => token!(TokenType::LeftParenthesis, index..index + 1),
             ')' => token!(TokenType::RightParenthesis, index..index + 1),
+            '!' => token!(TokenType::ExclamationMark, index..index + 1),
+            '&' => token!(TokenType::Ampersand, index..index + 1),
+            '|' => token!(TokenType::Pipe, index..index + 1),
             '.' => token!(TokenType::Dot, index..index + 1),
             ',' => token!(TokenType::Comma, index..index + 1),
             ';' => token!(TokenType::Semicolon, index..index + 1),
@@ -167,6 +176,92 @@ mod tests {
             token!(TokenType::RightParenthesis, 47),
             token!(TokenType::Asterisk, 48),
             token!(TokenType::Asterisk, 49),
+        ];
+
+        assert_eq!(tokens_actual, tokens_expected);
+    }
+
+    #[test]
+    fn test_tokenize_2() {
+        let code = "*a + nb -";
+
+        let tokens_actual = tokenize(code);
+        let tokens_expected = vec![
+            token!(TokenType::Asterisk, 0),
+            token!(TokenType::Identifier("a".to_string()), 1),
+            token!(TokenType::Space, 2),
+            token!(TokenType::Plus, 3),
+            token!(TokenType::Space, 4),
+            token!(TokenType::Identifier("nb".to_string()), 5..7),
+            token!(TokenType::Space, 7),
+            token!(TokenType::Minus, 8),
+        ];
+
+        assert_eq!(tokens_actual, tokens_expected);
+    }
+
+    #[test]
+    fn test_tokenize_3() {
+        let code = "a ++ nb /* k -+/ g";
+
+        let tokens_actual = tokenize(code);
+        let tokens_expected = vec![
+            token!(TokenType::Identifier("a".to_string()), 0),
+            token!(TokenType::Space, 1),
+            token!(TokenType::Plus, 2),
+            token!(TokenType::Plus, 3),
+            token!(TokenType::Space, 4),
+            token!(TokenType::Identifier("nb".to_string()), 5..7),
+            token!(TokenType::Space, 7),
+            token!(TokenType::Slash, 8),
+            token!(TokenType::Asterisk, 9),
+            token!(TokenType::Space, 10),
+            token!(TokenType::Identifier("k".to_string()), 11),
+            token!(TokenType::Space, 12),
+            token!(TokenType::Minus, 13),
+            token!(TokenType::Plus, 14),
+            token!(TokenType::Slash, 15),
+            token!(TokenType::Space, 16),
+            token!(TokenType::Identifier("g".to_string()), 17),
+        ];
+
+        assert_eq!(tokens_actual, tokens_expected);
+    }
+
+    #[test]
+    fn test_tokenize_4() {
+        let code = "a^b$c - d#h + q%t + !b&(z|t)";
+
+        let tokens_actual = tokenize(code);
+        let tokens_expected = vec![
+            token!(TokenType::Identifier("a".to_string()), 0),
+            token!(TokenType::Unknown('^'), 1),
+            token!(TokenType::Identifier("b".to_string()), 2),
+            token!(TokenType::Unknown('$'), 3),
+            token!(TokenType::Identifier("c".to_string()), 4),
+            token!(TokenType::Space, 5),
+            token!(TokenType::Minus, 6),
+            token!(TokenType::Space, 7),
+            token!(TokenType::Identifier("d".to_string()), 8),
+            token!(TokenType::Unknown('#'), 9),
+            token!(TokenType::Identifier("h".to_string()), 10),
+            token!(TokenType::Space, 11),
+            token!(TokenType::Plus, 12),
+            token!(TokenType::Space, 13),
+            token!(TokenType::Identifier("q".to_string()), 14),
+            token!(TokenType::Percent, 15),
+            token!(TokenType::Identifier("t".to_string()), 16),
+            token!(TokenType::Space, 17),
+            token!(TokenType::Plus, 18),
+            token!(TokenType::Space, 19),
+            token!(TokenType::ExclamationMark, 20),
+            token!(TokenType::Identifier("b".to_string()), 21),
+            token!(TokenType::Ampersand, 22),
+            token!(TokenType::LeftParenthesis, 23),
+            token!(TokenType::Identifier("z".to_string()), 24),
+            token!(TokenType::Pipe, 25),
+            token!(TokenType::Identifier("t".to_string()), 26),
+            token!(TokenType::RightParenthesis, 27),
         ];
 
         assert_eq!(tokens_actual, tokens_expected);
