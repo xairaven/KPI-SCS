@@ -26,7 +26,7 @@ pub enum TokenType {
 
     Space,
     Tab,
-    EOF,
+    NewLine,
 
     Unknown(char),
 }
@@ -114,7 +114,7 @@ pub fn tokenize(input: &str) -> Vec<Token> {
                 position: index..index + 1,
             },
             '\n' => Token {
-                token_type: TokenType::EOF,
+                token_type: TokenType::NewLine,
                 position: index..index + 1,
             },
             c if c.eq(&'\t') => Token {
