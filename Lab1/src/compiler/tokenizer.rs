@@ -31,6 +31,21 @@ pub enum TokenType {
     Unknown(char),
 }
 
+macro_rules! token {
+    ($token_type:expr, $position:literal) => {
+        Token {
+            token_type: $token_type,
+            position: $position..$position + 1,
+        }
+    };
+    ($token_type:expr, $position:expr) => {
+        Token {
+            token_type: $token_type,
+            position: $position,
+        }
+    };
+}
+
 pub fn tokenize(input: &str) -> Vec<Token> {
     let mut tokens: Vec<Token> = Vec::new();
     let chars: Vec<char> = input.chars().collect();
@@ -156,182 +171,50 @@ mod tests {
 
         let tokens_actual = tokenize(code);
         let tokens_expected = vec![
-            Token {
-                token_type: TokenType::Minus,
-                position: 0..1,
-            },
-            Token {
-                token_type: TokenType::Identifier("a".to_string()),
-                position: 1..2,
-            },
-            Token {
-                token_type: TokenType::Space,
-                position: 2..3,
-            },
-            Token {
-                token_type: TokenType::Plus,
-                position: 3..4,
-            },
-            Token {
-                token_type: TokenType::Plus,
-                position: 4..5,
-            },
-            Token {
-                token_type: TokenType::Space,
-                position: 5..6,
-            },
-            Token {
-                token_type: TokenType::Identifier("b".to_string()),
-                position: 6..7,
-            },
-            Token {
-                token_type: TokenType::Space,
-                position: 7..8,
-            },
-            Token {
-                token_type: TokenType::Minus,
-                position: 8..9,
-            },
-            Token {
-                token_type: TokenType::Space,
-                position: 9..10,
-            },
-            Token {
-                token_type: TokenType::Number("2".to_string()),
-                position: 10..11,
-            },
-            Token {
-                token_type: TokenType::Identifier("v".to_string()),
-                position: 11..12,
-            },
-            Token {
-                token_type: TokenType::Asterisk,
-                position: 12..13,
-            },
-            Token {
-                token_type: TokenType::Identifier("func".to_string()),
-                position: 13..17,
-            },
-            Token {
-                token_type: TokenType::LeftParenthesis,
-                position: 17..18,
-            },
-            Token {
-                token_type: TokenType::LeftParenthesis,
-                position: 18..19,
-            },
-            Token {
-                token_type: TokenType::Identifier("t".to_string()),
-                position: 19..20,
-            },
-            Token {
-                token_type: TokenType::Plus,
-                position: 20..21,
-            },
-            Token {
-                token_type: TokenType::Number("2".to_string()),
-                position: 21..22,
-            },
-            Token {
-                token_type: TokenType::Space,
-                position: 22..23,
-            },
-            Token {
-                token_type: TokenType::Minus,
-                position: 23..24,
-            },
-            Token {
-                token_type: TokenType::Comma,
-                position: 24..25,
-            },
-            Token {
-                token_type: TokenType::Space,
-                position: 25..26,
-            },
-            Token {
-                token_type: TokenType::Identifier("sin".to_string()),
-                position: 26..29,
-            },
-            Token {
-                token_type: TokenType::LeftParenthesis,
-                position: 29..30,
-            },
-            Token {
-                token_type: TokenType::Identifier("x".to_string()),
-                position: 30..31,
-            },
-            Token {
-                token_type: TokenType::Slash,
-                position: 31..32,
-            },
-            Token {
-                token_type: TokenType::Asterisk,
-                position: 32..33,
-            },
-            Token {
-                token_type: TokenType::Number("2".to_string()),
-                position: 33..34,
-            },
-            Token {
-                token_type: TokenType::Dot,
-                position: 34..35,
-            },
-            Token {
-                token_type: TokenType::Number("01".to_string()),
-                position: 35..37,
-            },
-            Token {
-                token_type: TokenType::Dot,
-                position: 37..38,
-            },
-            Token {
-                token_type: TokenType::Number("2".to_string()),
-                position: 38..39,
-            },
-            Token {
-                token_type: TokenType::RightParenthesis,
-                position: 39..40,
-            },
-            Token {
-                token_type: TokenType::Comma,
-                position: 40..41,
-            },
-            Token {
-                token_type: TokenType::Space,
-                position: 41..42,
-            },
-            Token {
-                token_type: TokenType::RightParenthesis,
-                position: 42..43,
-            },
-            Token {
-                token_type: TokenType::Slash,
-                position: 43..44,
-            },
-            Token {
-                token_type: TokenType::Number("8".to_string()),
-                position: 44..45,
-            },
-            Token {
-                token_type: TokenType::LeftParenthesis,
-                position: 45..46,
-            },
-            Token {
-                token_type: TokenType::Minus,
-                position: 46..47,
-            },
-            Token {
-                token_type: TokenType::RightParenthesis,
-                position: 47..48,
-            },
-            Token {
-                token_type: TokenType::Asterisk,
-                position: 48..49,
-            },
-            Token {
-                token_type: TokenType::Asterisk,
-                position: 49..50,
-            },
+            token!(TokenType::Minus, 0),
+            token!(TokenType::Identifier("a".to_string()), 1),
+            token!(TokenType::Space, 2),
+            token!(TokenType::Plus, 3),
+            token!(TokenType::Plus, 4),
+            token!(TokenType::Space, 5),
+            token!(TokenType::Identifier("b".to_string()), 6),
+            token!(TokenType::Space, 7),
+            token!(TokenType::Minus, 8),
+            token!(TokenType::Space, 9),
+            token!(TokenType::Number("2".to_string()), 10),
+            token!(TokenType::Identifier("v".to_string()), 11),
+            token!(TokenType::Asterisk, 12),
+            token!(TokenType::Identifier("func".to_string()), 13..17),
+            token!(TokenType::LeftParenthesis, 17),
+            token!(TokenType::LeftParenthesis, 18),
+            token!(TokenType::Identifier("t".to_string()), 19),
+            token!(TokenType::Plus, 20),
+            token!(TokenType::Number("2".to_string()), 21),
+            token!(TokenType::Space, 22),
+            token!(TokenType::Minus, 23),
+            token!(TokenType::Comma, 24),
+            token!(TokenType::Space, 25),
+            token!(TokenType::Identifier("sin".to_string()), 26..29),
+            token!(TokenType::LeftParenthesis, 29),
+            token!(TokenType::Identifier("x".to_string()), 30),
+            token!(TokenType::Slash, 31),
+            token!(TokenType::Asterisk, 32),
+            token!(TokenType::Number("2".to_string()), 33),
+            token!(TokenType::Dot, 34),
+            token!(TokenType::Number("01".to_string()), 35..37),
+            token!(TokenType::Dot, 37),
+            token!(TokenType::Number("2".to_string()), 38),
+            token!(TokenType::RightParenthesis, 39),
+            token!(TokenType::Comma, 40),
+            token!(TokenType::Space, 41),
+            token!(TokenType::RightParenthesis, 42),
+            token!(TokenType::Slash, 43),
+            token!(TokenType::Number("8".to_string()), 44),
+            token!(TokenType::LeftParenthesis, 45),
+            token!(TokenType::Minus, 46),
+            token!(TokenType::RightParenthesis, 47),
+            token!(TokenType::Asterisk, 48),
+            token!(TokenType::Asterisk, 49),
         ];
 
         assert_eq!(tokens_actual, tokens_expected);
