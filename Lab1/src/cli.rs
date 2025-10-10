@@ -1,5 +1,5 @@
 use crate::error::Error;
-use crate::io;
+use crate::{compiler, io};
 use clap::Parser;
 use std::path::PathBuf;
 
@@ -23,8 +23,7 @@ impl Cli {
 
         let code = io::read_code_file(&context.code_file)?;
 
-        // TODO: Implement code processing here
-        let output = code.clone();
+        let output = compiler::compile(&code);
 
         let output_destination = io::define_output_destination(context.output_file);
 
