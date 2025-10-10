@@ -1,12 +1,12 @@
 use std::ops::Range;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Token {
-    pub token_type: TokenType,
+    pub kind: TokenType,
     pub position: Range<usize>,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TokenType {
     Identifier(String),
     Number(String),
@@ -44,13 +44,13 @@ pub enum TokenType {
 macro_rules! token {
     ($token_type:expr, $position:literal) => {
         Token {
-            token_type: $token_type,
+            kind: $token_type,
             position: $position..($position + 1),
         }
     };
     ($token_type:expr, $position:expr) => {
         Token {
-            token_type: $token_type,
+            kind: $token_type,
             position: $position,
         }
     };
