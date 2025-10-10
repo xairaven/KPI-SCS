@@ -69,10 +69,7 @@ pub fn tokenize(input: &str) -> Vec<Token> {
                 }
 
                 let value: String = chars[start..end].iter().collect();
-                Token {
-                    token_type: TokenType::Identifier(value),
-                    position: start..end,
-                }
+                token!(TokenType::Identifier(value), start..end)
             },
             '0'..='9' => {
                 let start = index;
@@ -82,60 +79,21 @@ pub fn tokenize(input: &str) -> Vec<Token> {
                     end += 1;
                 }
 
-                let number: String = chars[start..end].iter().collect();
-                Token {
-                    token_type: TokenType::Number(number),
-                    position: start..end,
-                }
+                let value: String = chars[start..end].iter().collect();
+                token!(TokenType::Number(value), start..end)
             },
-            '+' => Token {
-                token_type: TokenType::Plus,
-                position: index..index + 1,
-            },
-            '-' => Token {
-                token_type: TokenType::Minus,
-                position: index..index + 1,
-            },
-            '*' => Token {
-                token_type: TokenType::Asterisk,
-                position: index..index + 1,
-            },
-            '/' => Token {
-                token_type: TokenType::Slash,
-                position: index..index + 1,
-            },
-            '(' => Token {
-                token_type: TokenType::LeftParenthesis,
-                position: index..index + 1,
-            },
-            ')' => Token {
-                token_type: TokenType::RightParenthesis,
-                position: index..index + 1,
-            },
-            '.' => Token {
-                token_type: TokenType::Dot,
-                position: index..index + 1,
-            },
-            ',' => Token {
-                token_type: TokenType::Comma,
-                position: index..index + 1,
-            },
-            ';' => Token {
-                token_type: TokenType::Semicolon,
-                position: index..index + 1,
-            },
-            '"' => Token {
-                token_type: TokenType::QuotationMark,
-                position: index..index + 1,
-            },
-            '\n' => Token {
-                token_type: TokenType::NewLine,
-                position: index..index + 1,
-            },
-            c if c.eq(&'\t') => Token {
-                token_type: TokenType::Tab,
-                position: index..index + 1,
-            },
+            '+' => token!(TokenType::Plus, index..index + 1),
+            '-' => token!(TokenType::Minus, index..index + 1),
+            '*' => token!(TokenType::Asterisk, index..index + 1),
+            '/' => token!(TokenType::Slash, index..index + 1),
+            '(' => token!(TokenType::LeftParenthesis, index..index + 1),
+            ')' => token!(TokenType::RightParenthesis, index..index + 1),
+            '.' => token!(TokenType::Dot, index..index + 1),
+            ',' => token!(TokenType::Comma, index..index + 1),
+            ';' => token!(TokenType::Semicolon, index..index + 1),
+            '"' => token!(TokenType::QuotationMark, index..index + 1),
+            '\n' => token!(TokenType::NewLine, index..index + 1),
+            c if c.eq(&'\t') => token!(TokenType::Tab, index..index + 1),
             c if c.is_whitespace() => {
                 let start = index;
                 let mut end = index + 1;
@@ -144,15 +102,9 @@ pub fn tokenize(input: &str) -> Vec<Token> {
                     end += 1;
                 }
 
-                Token {
-                    token_type: TokenType::Space,
-                    position: start..end,
-                }
+                token!(TokenType::Space, start..end)
             },
-            c => Token {
-                token_type: TokenType::Unknown(c.to_owned()),
-                position: index..index + 1,
-            },
+            c => token!(TokenType::Unknown(c.to_owned()), index..index + 1),
         };
 
         tokens.push(token);
