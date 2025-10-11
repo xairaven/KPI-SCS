@@ -12,50 +12,69 @@ pub struct SyntaxAnalyzer {
 }
 
 #[derive(Debug)]
-pub enum SyntaxError {
-    UnexpectedOperand(Token),
-    UnexpectedOperator(Token),
-    UnexpectedComma(Token),
-    UnexpectedDot(Token),
-    UnexpectedParenthesis(Token),
-    UnmatchedParenthesis(Token),
-    UnknownToken(Token),
+pub struct SyntaxError {
+    pub token: Token,
+    pub kind: SyntaxErrorKind,
+}
+
+macro_rules! syntax_error {
+    ($kind:ident, $token:expr) => {
+        SyntaxError {
+            token: $token.clone(),
+            kind: SyntaxErrorKind::$kind,
+        }
+    };
+}
+
+#[derive(Debug)]
+pub enum SyntaxErrorKind {
+    UnexpectedOperand,
+    UnexpectedOperator,
+    UnexpectedComma,
+    UnexpectedDot,
+    UnexpectedParenthesis,
+    UnmatchedParenthesis,
+    UnknownToken,
 }
 
 impl std::fmt::Display for SyntaxError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let text = match self {
-            Self::UnexpectedOperand(t) => {
-                let operand = match &t.kind {
+        let text = match self.kind {
+            SyntaxErrorKind::UnexpectedOperand | SyntaxErrorKind::UnexpectedOperator => {
+                let token = match &self.token.kind {
                     TokenType::Identifier(value) | TokenType::Number(value) => {
                         format!("'{}'", value)
                     },
-                    _ => t.kind.display_type(),
+                    _ => self.token.kind.display_type(),
                 };
 
-                format!("Unexpected operand {}. {}", operand, t.display_position())
-            },
-            Self::UnexpectedOperator(t) => {
-                let operator = match &t.kind {
-                    TokenType::Identifier(value) | TokenType::Number(value) => {
-                        format!("'{}'", value)
-                    },
-                    _ => t.kind.display_type(),
+                let unexpected = match self.kind {
+                    SyntaxErrorKind::UnexpectedOperand => "operand",
+                    SyntaxErrorKind::UnexpectedOperator => "operator",
+                    _ => unreachable!(),
                 };
-
-                format!("Unexpected operator {}. {}", operator, t.display_position())
+                format!(
+                    "Unexpected {} {}. {}",
+                    unexpected,
+                    token,
+                    self.token.display_position()
+                )
             },
-            Self::UnexpectedComma(t) => {
-                format!("Unexpected comma. {}", t.display_position())
+            SyntaxErrorKind::UnexpectedComma => {
+                format!("Unexpected comma. {}", self.token.display_position())
             },
-            Self::UnexpectedDot(t) => format!("Unexpected dot. {}", t.display_position()),
-            Self::UnexpectedParenthesis(t) => {
-                format!("Unexpected parenthesis. {}", t.display_position())
+            SyntaxErrorKind::UnexpectedDot => {
+                format!("Unexpected dot. {}", self.token.display_position())
             },
-            Self::UnmatchedParenthesis(t) => {
-                format!("Unmatched parenthesis. {}", t.display_position())
+            SyntaxErrorKind::UnexpectedParenthesis => {
+                format!("Unexpected parenthesis. {}", self.token.display_position())
             },
-            Self::UnknownToken(t) => format!("Unknown token. {}", t.display_position()),
+            SyntaxErrorKind::UnmatchedParenthesis => {
+                format!("Unmatched parenthesis. {}", self.token.display_position())
+            },
+            SyntaxErrorKind::UnknownToken => {
+                format!("Unknown token. {}", self.token.display_position())
+            },
         };
 
         write!(f, "{}", text)
@@ -115,8 +134,7 @@ impl SyntaxAnalyzer {
                         // Start mark. We're expecting an operand here.
                         if !self.status.expect_operand {
                             // If we didn't expect an operand, it's an error.
-                            self.errors
-                                .push(SyntaxError::UnexpectedOperator(token.clone()));
+                            self.errors.push(syntax_error!(UnexpectedOperator, token));
                         }
                         self.status.in_string = true;
                         // While inside string we're considering that operand is not finished
@@ -145,8 +163,7 @@ impl SyntaxAnalyzer {
                 TokenType::Identifier(_) => {
                     // Identifier - operand
                     if !self.status.expect_operand {
-                        self.errors
-                            .push(SyntaxError::UnexpectedOperand(token.clone()));
+                        self.errors.push(syntax_error!(UnexpectedOperand, token));
                         // Continuing, but considering that operand was read
                     }
                     self.status.expect_operand = false;
@@ -158,8 +175,7 @@ impl SyntaxAnalyzer {
                 TokenType::Number(_) => {
                     // Number - operand
                     if !self.status.expect_operand {
-                        self.errors
-                            .push(SyntaxError::UnexpectedOperand(token.clone()));
+                        self.errors.push(syntax_error!(UnexpectedOperand, token));
                         // Continuing, but considering that operand was read
                     }
 
@@ -177,8 +193,7 @@ impl SyntaxAnalyzer {
                                 continue;
                             } else {
                                 // Something else after dot - error
-                                self.errors
-                                    .push(SyntaxError::UnexpectedDot(second.clone()));
+                                self.errors.push(syntax_error!(UnexpectedDot, second));
                                 // Skipping number with the dot
                                 self.current_index += 2;
                                 self.status.expect_operand = false;
@@ -187,8 +202,7 @@ impl SyntaxAnalyzer {
                             }
                         } else {
                             // Dot in the end - error
-                            self.errors
-                                .push(SyntaxError::UnexpectedOperator(next.clone()));
+                            self.errors.push(syntax_error!(UnexpectedOperator, next));
                             self.current_index += 2;
                             self.status.expect_operand = false;
                             self.status.expect_operator = true;
@@ -204,8 +218,7 @@ impl SyntaxAnalyzer {
                 },
 
                 TokenType::Dot => {
-                    self.errors
-                        .push(SyntaxError::UnexpectedOperator(token.clone()));
+                    self.errors.push(syntax_error!(UnexpectedOperator, token));
                     self.current_index += 1;
                     continue;
                 },
@@ -218,8 +231,7 @@ impl SyntaxAnalyzer {
                 | TokenType::Percent => {
                     if self.status.expect_operand {
                         // Not supporting unary operations
-                        self.errors
-                            .push(SyntaxError::UnexpectedOperator(token.clone()));
+                        self.errors.push(syntax_error!(UnexpectedOperator, token));
                         // Waiting for operand still
                         self.current_index += 1;
                         continue;
@@ -235,8 +247,7 @@ impl SyntaxAnalyzer {
                 // Unary logical operations. Located where operand is expected
                 TokenType::ExclamationMark | TokenType::Ampersand | TokenType::Pipe => {
                     if !self.status.expect_operand {
-                        self.errors
-                            .push(SyntaxError::UnexpectedOperator(token.clone()));
+                        self.errors.push(syntax_error!(UnexpectedOperator, token));
                         self.current_index += 1;
                         continue;
                     } else {
@@ -252,8 +263,7 @@ impl SyntaxAnalyzer {
                     let allow = self.status.expect_operand
                         || matches!(self.peek_previous(), Some(t) if matches!(t.kind, TokenType::Identifier(_)));
                     if !allow {
-                        self.errors
-                            .push(SyntaxError::UnmatchedParenthesis(token.clone()));
+                        self.errors.push(syntax_error!(UnmatchedParenthesis, token));
                         self.current_index += 1;
                         continue;
                     }
@@ -271,8 +281,7 @@ impl SyntaxAnalyzer {
                         self.status.expect_operand = false;
                         self.status.expect_operator = true;
                     } else {
-                        self.errors
-                            .push(SyntaxError::UnmatchedParenthesis(token.clone()));
+                        self.errors.push(syntax_error!(UnmatchedParenthesis, token));
                     }
                     self.current_index += 1;
                     continue;
@@ -282,16 +291,14 @@ impl SyntaxAnalyzer {
                     // Allowed only inside parentheses (function)
                     if self.parentheses_stack.is_empty() {
                         // Surely an error
-                        self.errors
-                            .push(SyntaxError::UnexpectedComma(token.clone()));
+                        self.errors.push(syntax_error!(UnexpectedComma, token));
                         self.current_index += 1;
                         continue;
                     } else {
                         // Inside parentheses comma need to be after operand and before new operand
                         if self.status.expect_operand {
                             // Empty argument
-                            self.errors
-                                .push(SyntaxError::UnexpectedComma(token.clone()));
+                            self.errors.push(syntax_error!(UnexpectedComma, token));
                         }
                         // Expecting new operand
                         self.status.expect_operand = true;
@@ -303,7 +310,7 @@ impl SyntaxAnalyzer {
 
                 TokenType::Unknown(_) => {
                     // Unknown — always an error
-                    self.errors.push(SyntaxError::UnknownToken(token.clone()));
+                    self.errors.push(syntax_error!(UnknownToken, token));
                     self.current_index += 1;
                     continue;
                 },
@@ -314,15 +321,14 @@ impl SyntaxAnalyzer {
         // Error for every unmatched left parenthesis
         for unmatched in self.parentheses_stack.into_iter().rev() {
             self.errors
-                .push(SyntaxError::UnmatchedParenthesis(unmatched));
+                .push(syntax_error!(UnmatchedParenthesis, unmatched));
         }
 
         // If operand is expected in the end, it's the error.
         if let Some(last) = self.tokens.last()
             && self.status.expect_operand
         {
-            self.errors
-                .push(SyntaxError::UnexpectedOperand(last.clone()));
+            self.errors.push(syntax_error!(UnexpectedOperand, last));
         }
 
         self.errors
