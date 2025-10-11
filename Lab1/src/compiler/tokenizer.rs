@@ -166,7 +166,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_tokenize_1() {
+    fn test_tokenize_01() {
         let code = "-a ++ b - 2v*func((t+2 -, sin(x/*2.01.2), )/8(-)**";
 
         let tokens_actual = tokenize(code);
@@ -221,7 +221,7 @@ mod tests {
     }
 
     #[test]
-    fn test_tokenize_2() {
+    fn test_tokenize_02() {
         let code = "*a + nb -";
 
         let tokens_actual = tokenize(code);
@@ -240,7 +240,7 @@ mod tests {
     }
 
     #[test]
-    fn test_tokenize_3() {
+    fn test_tokenize_03() {
         let code = "a ++ nb /* k -+/ g";
 
         let tokens_actual = tokenize(code);
@@ -268,7 +268,7 @@ mod tests {
     }
 
     #[test]
-    fn test_tokenize_4() {
+    fn test_tokenize_04() {
         let code = "a^b$c - d#h + q%t + !b&(z|t)";
 
         let tokens_actual = tokenize(code);
@@ -307,7 +307,7 @@ mod tests {
     }
 
     #[test]
-    fn test_tokenize_5() {
+    fn test_tokenize_05() {
         let code = "x + var1 + var_2 + _var_3 + var#4 + var!5 + 6var_ + $7 + ?8";
 
         let tokens_actual = tokenize(code);
@@ -358,7 +358,7 @@ mod tests {
     }
 
     #[test]
-    fn test_tokenize_6() {
+    fn test_tokenize_06() {
         let code = "125 + 2nb - 0xAB * 0x0R + 0b010 * 0b20 + ABh * 0Rh + 010b*20b";
 
         let tokens_actual = tokenize(code);
@@ -412,7 +412,7 @@ mod tests {
     }
 
     #[test]
-    fn test_tokenize_7() {
+    fn test_tokenize_07() {
         let code = "0.71/0.72.3 + .3 + 127.0.0.1*8. + 6.07ab - 9f.89hgt";
 
         let tokens_actual = tokenize(code);
@@ -465,7 +465,7 @@ mod tests {
     }
 
     #[test]
-    fn test_tokenize_8() {
+    fn test_tokenize_08() {
         let code = ")a+b( -(g+h)(g-k))*()) + (-b(t-2*x*(5) + A[7][2-x]";
 
         let tokens_actual = tokenize(code);
@@ -526,7 +526,7 @@ mod tests {
     }
 
     #[test]
-    fn test_tokenize_9() {
+    fn test_tokenize_09() {
         let code = "2(t) - f2(t) + g()/h(2, )*func(-t/q, f(4-t), -(x+2)*(y-2))";
 
         let tokens_actual = tokenize(code);
