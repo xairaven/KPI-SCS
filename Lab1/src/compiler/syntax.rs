@@ -307,7 +307,7 @@ impl SyntaxAnalyzer {
                     }
 
                     if let Some(previous) = self.peek_previous()
-                        && matches!(previous.kind, TokenType::Identifier)
+                        && matches!(previous.kind, TokenType::Number)
                     {
                         // Function name cannot start with a number
                         self.errors
