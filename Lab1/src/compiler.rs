@@ -1,14 +1,16 @@
 use crate::compiler::syntax::{SyntaxAnalyzer, SyntaxError};
+use crate::utils::StringExtension;
 use colored::Colorize;
+use std::ops::Add;
 
 pub fn compile(source: &str) -> String {
     let tokens = tokenizer::tokenize(source);
     let syntax_errors = SyntaxAnalyzer::new(tokens).analyze();
 
-    report(source, &syntax_errors)
+    report(source, syntax_errors)
 }
 
-fn report(source: &str, syntax_errors: &[SyntaxError]) -> String {
+fn report(source: &str, syntax_errors: Vec<SyntaxError>) -> String {
     let mut result = String::new();
 
     let first_line = match syntax_errors.len() {
@@ -25,10 +27,52 @@ fn report(source: &str, syntax_errors: &[SyntaxError]) -> String {
     result.push_str(&first_line);
 
     result.push_str(&format!("\n{}:\n", "Code".bold().yellow()));
-    result.push_str(source);
+    result.push_str(&format!("{}\n", source));
 
-    for error in syntax_errors {
-        // TODO: formatting
+    if !syntax_errors.is_empty() {
+        let errors = format_errors(source, syntax_errors);
+        result.push_str(&format!("{}\n", errors));
+    }
+
+    result
+}
+
+fn format_errors(source: &str, mut syntax_errors: Vec<SyntaxError>) -> String {
+    let mut result = String::new();
+
+    syntax_errors.sort_by(|a, b| a.token.position.start.cmp(&b.token.position.start));
+
+    // First line: Underlines
+    let length = source.len();
+    let mut first_line = " ".repeat(length).add("\n");
+    for error in &syntax_errors {
+        let underline_length = error.token.position.end - error.token.position.start;
+        if underline_length == 1 {
+            first_line.replace_char(error.token.position.start, '^');
+        } else {
+            for index in (error.token.position.start + 1)..(error.token.position.end - 1)
+            {
+                first_line.replace_char(index, '-');
+            }
+
+            first_line.replace_char(error.token.position.start, '^');
+            first_line.replace_char(error.token.position.end - 1, '^');
+        }
+    }
+    result.push_str(&first_line);
+
+    // Other lines
+    for error in syntax_errors.iter().rev() {
+        // One for -, another one for \n
+        let mut line = " ".repeat(length + 2);
+        for error in syntax_errors.iter() {
+            line.replace_char(error.token.position.start, '|');
+        }
+        for index in (error.token.position.start + 1)..(length + 1) {
+            line.replace_char(index, '_');
+        }
+        line.push_str(&format!("{}\n", error));
+        result.push_str(&line);
     }
 
     result
