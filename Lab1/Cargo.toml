@@ -19,6 +19,5 @@ workspace = true
 [dependencies]
 clap = { version = "4.5.48", features = ["derive"] }
 colored = "3.0.0"
-strum = "0.27.2"
 strum_macros = "0.27.2"
 thiserror = "2.0.17"
