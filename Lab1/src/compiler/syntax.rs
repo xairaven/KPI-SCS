@@ -1,4 +1,5 @@
 use crate::compiler::tokenizer::{Token, TokenType};
+use colored::Colorize;
 use std::collections::VecDeque;
 
 #[derive(Debug)]
@@ -54,26 +55,45 @@ impl std::fmt::Display for SyntaxError {
                     _ => unreachable!(),
                 };
                 format!(
-                    "Unexpected {} {}. {}",
-                    unexpected,
-                    token,
-                    self.token.display_position()
+                    "{:30} {}",
+                    format!("Unexpected {} {}.", unexpected, token).bold().red(),
+                    self.token.display_position().bold()
                 )
             },
             SyntaxErrorKind::UnexpectedComma => {
-                format!("Unexpected comma. {}", self.token.display_position())
+                format!(
+                    "{:30} {}",
+                    "Unexpected comma.".bold().red(),
+                    self.token.display_position().bold()
+                )
             },
             SyntaxErrorKind::UnexpectedDot => {
-                format!("Unexpected dot. {}", self.token.display_position())
+                format!(
+                    "{:30} {}",
+                    "Unexpected dot.".bold().red(),
+                    self.token.display_position().bold()
+                )
             },
             SyntaxErrorKind::UnexpectedParenthesis => {
-                format!("Unexpected parenthesis. {}", self.token.display_position())
+                format!(
+                    "{:30} {}",
+                    "Unexpected parenthesis.".bold().red(),
+                    self.token.display_position().bold()
+                )
             },
             SyntaxErrorKind::UnmatchedParenthesis => {
-                format!("Unmatched parenthesis. {}", self.token.display_position())
+                format!(
+                    "{:30} {}",
+                    "Unmatched parenthesis.".bold().red(),
+                    self.token.display_position().bold()
+                )
             },
             SyntaxErrorKind::UnknownToken => {
-                format!("Unknown token. {}", self.token.display_position())
+                format!(
+                    "{:30} {}",
+                    "Unknown token.".bold().red(),
+                    self.token.display_position().bold()
+                )
             },
         };
 
