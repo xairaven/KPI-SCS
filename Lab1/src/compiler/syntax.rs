@@ -331,6 +331,9 @@ impl SyntaxAnalyzer {
         }
 
         self.errors
+            .sort_by(|a, b| a.token.position.start.cmp(&b.token.position.start));
+
+        self.errors
     }
 
     fn peek_next(&self) -> Option<&Token> {
@@ -398,9 +401,8 @@ mod tests {
     fn test_syntax_01() {
         let code = "-a ++ b - 2v*func((t+2 -, sin(x/*2.01.2), )/8(-)**";
 
-        let mut errors_actual: Vec<SyntaxError> =
+        let errors_actual: Vec<SyntaxError> =
             SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
-        errors_actual.sort_by(|a, b| a.token.position.start.cmp(&b.token.position.start));
         let errors_expected: Vec<SyntaxError> = vec![
             test_error!(UnexpectedOperator, TokenType::Minus, 0),
             test_error!(UnexpectedOperator, TokenType::Plus, 4),

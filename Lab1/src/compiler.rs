@@ -40,10 +40,8 @@ fn report(source: &str, syntax_errors: Vec<SyntaxError>, is_pretty: bool) -> Str
     result
 }
 
-fn format_errors_pretty(source: &str, mut syntax_errors: Vec<SyntaxError>) -> String {
+fn format_errors_pretty(source: &str, syntax_errors: Vec<SyntaxError>) -> String {
     let mut result = String::new();
-
-    syntax_errors.sort_by(|a, b| a.token.position.start.cmp(&b.token.position.start));
 
     // First line: Underlines
     let length = source.len();
@@ -81,10 +79,8 @@ fn format_errors_pretty(source: &str, mut syntax_errors: Vec<SyntaxError>) -> St
     result
 }
 
-fn format_errors(mut syntax_errors: Vec<SyntaxError>) -> String {
+fn format_errors(syntax_errors: Vec<SyntaxError>) -> String {
     let mut result = String::new();
-
-    syntax_errors.sort_by(|a, b| a.token.position.start.cmp(&b.token.position.start));
 
     for error in syntax_errors {
         result.push_str(&format!("{}\n", error));
