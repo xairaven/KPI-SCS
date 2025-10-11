@@ -44,10 +44,13 @@ impl std::fmt::Display for SyntaxError {
         let text = match self.kind {
             SyntaxErrorKind::UnexpectedOperand | SyntaxErrorKind::UnexpectedOperator => {
                 let token = match &self.token.kind {
-                    TokenType::Identifier(value) | TokenType::Number(value) => {
-                        format!("'{}'", value)
+                    TokenType::Identifier | TokenType::Number => {
+                        match &self.token.value {
+                            None => format!("{}", "UNDEFINED".bright_purple().italic()),
+                            Some(value) => format!("'{}'", value),
+                        }
                     },
-                    _ => self.token.kind.display_type(),
+                    _ => self.token.kind.to_string(),
                 };
 
                 let unexpected = match self.kind {
@@ -64,9 +67,13 @@ impl std::fmt::Display for SyntaxError {
             SyntaxErrorKind::UnexpectedFunctionName => {
                 format!(
                     "{:30} {}",
-                    format!("Unexpected function name \"{}\".", if let TokenType::Number(num) = &self.token.kind {
-                        num
-                    } else {panic!("Function name that starts not with the number, but error occurred.")}).bold().red(),
+                    format!(
+                        "Unexpected function name \"{}\".",
+                        match &self.token.value {
+                            None => "<UNDEFINED>",
+                            Some(value) => value,
+                        }
+                    ),
                     self.token.display_position().bold()
                 )
             },
@@ -190,7 +197,7 @@ impl SyntaxAnalyzer {
                     continue;
                 },
 
-                TokenType::Identifier(_) => {
+                TokenType::Identifier => {
                     // Identifier - operand
                     if !self.status.expect_operand {
                         self.errors.push(syntax_error!(UnexpectedOperand, token));
@@ -202,7 +209,7 @@ impl SyntaxAnalyzer {
                     continue;
                 },
 
-                TokenType::Number(_) => {
+                TokenType::Number => {
                     // Number - operand
                     if !self.status.expect_operand {
                         self.errors.push(syntax_error!(UnexpectedOperand, token));
@@ -214,7 +221,7 @@ impl SyntaxAnalyzer {
                         && next.kind == TokenType::Dot
                     {
                         if let Some(second) = self.peek_next_by(2) {
-                            if matches!(&second.kind, TokenType::Number(_)) {
+                            if matches!(&second.kind, TokenType::Number) {
                                 // Correct float! Number-Dot-Number
                                 // Next token - the third
                                 self.current_index += 3;
@@ -291,17 +298,17 @@ impl SyntaxAnalyzer {
                     // LeftParenthesis can be there if we're waiting for operand (grouping)
                     // or previous token is Identifier (function call)
                     let allow = self.status.expect_operand
-                        || matches!(self.peek_previous(), Some(t) if matches!(t.kind, TokenType::Identifier(_)))
-                        || matches!(self.peek_previous(), Some(t) if matches!(t.kind, TokenType::Number(_)));
+                        || matches!(self.peek_previous(), Some(t) if matches!(t.kind, TokenType::Identifier))
+                        || matches!(self.peek_previous(), Some(t) if matches!(t.kind, TokenType::Number));
                     if !allow {
                         self.errors.push(syntax_error!(UnmatchedParenthesis, token));
                         self.current_index += 1;
                         continue;
                     }
 
-                    if matches!(self.peek_previous(), Some(prev_token) if matches!(prev_token.kind, TokenType::Number(_)))
+                    if let Some(previous) = self.peek_previous()
+                        && matches!(previous.kind, TokenType::Identifier)
                     {
-                        let previous = self.peek_previous().unwrap();
                         // Function name cannot start with a number
                         self.errors
                             .push(syntax_error!(UnexpectedFunctionName, previous));
@@ -347,7 +354,7 @@ impl SyntaxAnalyzer {
                     }
                 },
 
-                TokenType::Unknown(_) => {
+                TokenType::Unknown => {
                     // Unknown — always an error
                     self.errors.push(syntax_error!(UnknownToken, token));
                     self.current_index += 1;
@@ -397,6 +404,7 @@ mod tests {
                 token: Token {
                     kind: $token_kind,
                     position: $position..$position + 1,
+                    value: None,
                 },
                 kind: SyntaxErrorKind::$error_kind,
             }
@@ -406,6 +414,27 @@ mod tests {
                 token: Token {
                     kind: $token_kind,
                     position: $position,
+                    value: None,
+                },
+                kind: SyntaxErrorKind::$error_kind,
+            }
+        };
+        ($error_kind:ident, $token_kind:expr, $position:literal, $value:expr) => {
+            SyntaxError {
+                token: Token {
+                    kind: $token_kind,
+                    position: $position..$position + 1,
+                    value: Some($value),
+                },
+                kind: SyntaxErrorKind::$error_kind,
+            }
+        };
+        ($error_kind:ident, $token_kind:expr, $position:expr, $value:expr) => {
+            SyntaxError {
+                token: Token {
+                    kind: $token_kind,
+                    position: $position,
+                    value: Some($value),
                 },
                 kind: SyntaxErrorKind::$error_kind,
             }
@@ -424,18 +453,20 @@ mod tests {
             test_error!(UnexpectedOperator, TokenType::Plus, 4),
             test_error!(
                 UnexpectedOperand,
-                TokenType::Identifier("v".to_string()),
-                11
+                TokenType::Identifier,
+                11,
+                "v".to_string()
             ),
             test_error!(UnmatchedParenthesis, TokenType::LeftParenthesis, 17),
             test_error!(UnexpectedComma, TokenType::Comma, 24),
             test_error!(UnexpectedOperator, TokenType::Asterisk, 32),
             test_error!(UnexpectedDot, TokenType::Dot, 37),
-            test_error!(UnexpectedOperand, TokenType::Number("2".to_string()), 38),
+            test_error!(UnexpectedOperand, TokenType::Number, 38, "2".to_string()),
             test_error!(
                 UnexpectedFunctionName,
-                TokenType::Number("8".to_string()),
-                44
+                TokenType::Number,
+                44,
+                "8".to_string()
             ),
             test_error!(UnexpectedOperator, TokenType::Minus, 46),
             test_error!(UnexpectedOperator, TokenType::Asterisk, 49),
