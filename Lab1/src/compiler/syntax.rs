@@ -47,10 +47,7 @@ impl std::fmt::Display for SyntaxError {
                 None => "Unexpected operand.",
                 Some(value) => &format!("Unexpected operand '{}'.", value),
             },
-            SyntaxErrorKind::UnexpectedOperator => match &self.token.value {
-                None => "Unexpected operator.",
-                Some(value) => &format!("Unexpected operator '{}'.", value),
-            },
+            SyntaxErrorKind::UnexpectedOperator => "Unexpected operator.",
             SyntaxErrorKind::UnexpectedFunctionName => match &self.token.value {
                 None => "Unexpected function name.",
                 Some(value) => &format!("Unexpected function name '{}'.", value),
