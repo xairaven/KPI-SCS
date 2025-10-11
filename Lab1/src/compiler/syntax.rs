@@ -426,6 +426,7 @@ mod tests {
             ),
             test_error!(UnexpectedOperator, TokenType::Minus, 46),
             test_error!(UnexpectedOperator, TokenType::Asterisk, 49),
+            test_error!(UnexpectedEndOfExpression, TokenType::Asterisk, 49),
         ];
         assert_eq!(errors_actual, errors_expected);
     }
