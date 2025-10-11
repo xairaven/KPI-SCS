@@ -12,7 +12,7 @@ pub struct SyntaxAnalyzer {
     status: Status,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct SyntaxError {
     pub token: Token,
     pub kind: SyntaxErrorKind,
@@ -27,8 +27,9 @@ macro_rules! syntax_error {
     };
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum SyntaxErrorKind {
+    UnexpectedFunctionName,
     UnexpectedOperand,
     UnexpectedOperator,
     UnexpectedComma,
@@ -57,6 +58,15 @@ impl std::fmt::Display for SyntaxError {
                 format!(
                     "{:30} {}",
                     format!("Unexpected {} {}.", unexpected, token).bold().red(),
+                    self.token.display_position().bold()
+                )
+            },
+            SyntaxErrorKind::UnexpectedFunctionName => {
+                format!(
+                    "{:30} {}",
+                    format!("Unexpected function name \"{}\".", if let TokenType::Number(num) = &self.token.kind {
+                        num
+                    } else {panic!("Function name that starts not with the number, but error occurred.")}).bold().red(),
                     self.token.display_position().bold()
                 )
             },
@@ -238,7 +248,7 @@ impl SyntaxAnalyzer {
                 },
 
                 TokenType::Dot => {
-                    self.errors.push(syntax_error!(UnexpectedOperator, token));
+                    self.errors.push(syntax_error!(UnexpectedDot, token));
                     self.current_index += 1;
                     continue;
                 },
@@ -281,11 +291,20 @@ impl SyntaxAnalyzer {
                     // LeftParenthesis can be there if we're waiting for operand (grouping)
                     // or previous token is Identifier (function call)
                     let allow = self.status.expect_operand
-                        || matches!(self.peek_previous(), Some(t) if matches!(t.kind, TokenType::Identifier(_)));
+                        || matches!(self.peek_previous(), Some(t) if matches!(t.kind, TokenType::Identifier(_)))
+                        || matches!(self.peek_previous(), Some(t) if matches!(t.kind, TokenType::Number(_)));
                     if !allow {
                         self.errors.push(syntax_error!(UnmatchedParenthesis, token));
                         self.current_index += 1;
                         continue;
+                    }
+
+                    if matches!(self.peek_previous(), Some(prev_token) if matches!(prev_token.kind, TokenType::Number(_)))
+                    {
+                        let previous = self.peek_previous().unwrap();
+                        // Function name cannot start with a number
+                        self.errors
+                            .push(syntax_error!(UnexpectedFunctionName, previous));
                     }
 
                     self.parentheses_stack.push_back(token.clone());
@@ -339,7 +358,7 @@ impl SyntaxAnalyzer {
         }
 
         // Error for every unmatched left parenthesis
-        for unmatched in self.parentheses_stack.into_iter().rev() {
+        for unmatched in self.parentheses_stack.into_iter() {
             self.errors
                 .push(syntax_error!(UnmatchedParenthesis, unmatched));
         }
@@ -365,4 +384,225 @@ impl SyntaxAnalyzer {
     fn peek_previous(&self) -> Option<&Token> {
         self.tokens.get(self.current_index - 1)
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::compiler::tokenizer;
+
+    macro_rules! test_error {
+        ($error_kind:ident, $token_kind:expr, $position:literal) => {
+            SyntaxError {
+                token: Token {
+                    kind: $token_kind,
+                    position: $position..$position + 1,
+                },
+                kind: SyntaxErrorKind::$error_kind,
+            }
+        };
+        ($error_kind:ident, $token_kind:expr, $position:expr) => {
+            SyntaxError {
+                token: Token {
+                    kind: $token_kind,
+                    position: $position,
+                },
+                kind: SyntaxErrorKind::$error_kind,
+            }
+        };
+    }
+
+    #[test]
+    fn test_syntax_01() {
+        let code = "-a ++ b - 2v*func((t+2 -, sin(x/*2.01.2), )/8(-)**";
+
+        let mut errors_actual: Vec<SyntaxError> =
+            SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
+        errors_actual.sort_by(|a, b| a.token.position.start.cmp(&b.token.position.start));
+        let errors_expected: Vec<SyntaxError> = vec![
+            test_error!(UnexpectedOperator, TokenType::Minus, 0),
+            test_error!(UnexpectedOperator, TokenType::Plus, 4),
+            test_error!(
+                UnexpectedOperand,
+                TokenType::Identifier("v".to_string()),
+                11
+            ),
+            test_error!(UnmatchedParenthesis, TokenType::LeftParenthesis, 17),
+            test_error!(UnexpectedComma, TokenType::Comma, 24),
+            test_error!(UnexpectedOperator, TokenType::Asterisk, 32),
+            test_error!(UnexpectedDot, TokenType::Dot, 37),
+            test_error!(UnexpectedOperand, TokenType::Number("2".to_string()), 38),
+            test_error!(
+                UnexpectedFunctionName,
+                TokenType::Number("8".to_string()),
+                44
+            ),
+            test_error!(UnexpectedOperator, TokenType::Minus, 46),
+            test_error!(UnexpectedOperator, TokenType::Asterisk, 49),
+        ];
+        assert_eq!(errors_actual, errors_expected);
+    }
+
+    //     #[test]
+    //     fn test_syntax_02() {
+    //         let code = "*a + nb -";
+    //
+    //         let errors_actual: Vec<SyntaxError> =
+    //             SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
+    //         let errors_expected: Vec<SyntaxError> = vec![];
+    //         assert_eq!(errors_actual, errors_expected);
+    //     }
+    //
+    //     #[test]
+    //     fn test_syntax_03() {
+    //         let code = "a ++ nb /* k -+/ g";
+    //
+    //         let errors_actual: Vec<SyntaxError> =
+    //             SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
+    //         let errors_expected: Vec<SyntaxError> = vec![];
+    //         assert_eq!(errors_actual, errors_expected);
+    //     }
+    //
+    //     #[test]
+    //     fn test_syntax_04() {
+    //         let code = "a^b$c - d#h + q%t + !b&(z|t)";
+    //
+    //         let errors_actual: Vec<SyntaxError> =
+    //             SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
+    //         let errors_expected: Vec<SyntaxError> = vec![];
+    //         assert_eq!(errors_actual, errors_expected);
+    //     }
+    //
+    //     #[test]
+    //     fn test_syntax_05() {
+    //         let code = "x + var1 + var_2 + _var_3 + var#4 + var!5
+    // + 6var_ + $7 + ?8";
+    //
+    //         let errors_actual: Vec<SyntaxError> =
+    //             SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
+    //         let errors_expected: Vec<SyntaxError> = vec![];
+    //         assert_eq!(errors_actual, errors_expected);
+    //     }
+    //
+    //     #[test]
+    //     fn test_syntax_06() {
+    //         let code = "125 + 2nb - 0xAB * 0x0R + 0b010 * 0b20+ ABh * 0Rh + 010b*20b";
+    //
+    //         let errors_actual: Vec<SyntaxError> =
+    //             SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
+    //         let errors_expected: Vec<SyntaxError> = vec![];
+    //         assert_eq!(errors_actual, errors_expected);
+    //     }
+    //
+    //     #[test]
+    //     fn test_syntax_07() {
+    //         let code = "0.71/0.72.3 + .3 + 127.0.0.1*8. + 6.07ab - 9f.89hgt";
+    //
+    //         let errors_actual: Vec<SyntaxError> =
+    //             SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
+    //         let errors_expected: Vec<SyntaxError> = vec![];
+    //         assert_eq!(errors_actual, errors_expected);
+    //     }
+    //
+    //     #[test]
+    //     fn test_syntax_08() {
+    //         let code = ")a+b( -(g+h)(g-k))*()) + (-b(t-2*x*(5) + A[7][2-x]";
+    //
+    //         let errors_actual: Vec<SyntaxError> =
+    //             SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
+    //         let errors_expected: Vec<SyntaxError> = vec![];
+    //         assert_eq!(errors_actual, errors_expected);
+    //     }
+    //
+    //     #[test]
+    //     fn test_syntax_09() {
+    //         let code = "2(t) - f2(t) + g()/h(2, )*func(-t/q, f(4-t), - (x+2)*(y-2))";
+    //
+    //         let errors_actual: Vec<SyntaxError> =
+    //             SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
+    //         let errors_expected: Vec<SyntaxError> = vec![];
+    //         assert_eq!(errors_actual, errors_expected);
+    //     }
+    //
+    //     #[test]
+    //     fn test_syntax_10() {
+    //         let code = "/a*b**c + m)*a*b + a*c - a*smn(j*k/m + m";
+    //
+    //         let errors_actual: Vec<SyntaxError> =
+    //             SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
+    //         let errors_expected: Vec<SyntaxError> = vec![];
+    //         assert_eq!(errors_actual, errors_expected);
+    //     }
+    //
+    //     #[test]
+    //     fn test_syntax_11() {
+    //         let code =
+    //             "-cos(-&t))/(*(*f)(127.0.0.1, \"/dev/null\", (t==0)?4more_errors:b^2) - .5";
+    //
+    //         let errors_actual: Vec<SyntaxError> =
+    //             SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
+    //         let errors_expected: Vec<SyntaxError> = vec![];
+    //         assert_eq!(errors_actual, errors_expected);
+    //     }
+    //
+    //     #[test]
+    //     fn test_syntax_12() {
+    //         let code = "//(*0)- an*0p(a+b)-1.000.5//6(*f(-b, 1.8-0*(2-6) %1 + (++a)/(6x^2+4x-1) + d/dt*(smn(at+q)/(4cos(at)-ht^2)";
+    //
+    //         let errors_actual: Vec<SyntaxError> =
+    //             SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
+    //         let errors_expected: Vec<SyntaxError> = vec![];
+    //         assert_eq!(errors_actual, errors_expected);
+    //     }
+    //
+    //     #[test]
+    //     fn test_syntax_13() {
+    //         let code = "-(-5x((int*)exp())/t - 3.14.15k/(2x^2-5x-1)*y - A[N*(i++)+j]";
+    //
+    //         let errors_actual: Vec<SyntaxError> =
+    //             SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
+    //         let errors_expected: Vec<SyntaxError> = vec![];
+    //         assert_eq!(errors_actual, errors_expected);
+    //     }
+    //
+    //     #[test]
+    //     fn test_syntax_14() {
+    //         let code = "-(-exp(3et/4.0.2, 2i-1)/L + )((void*)*f()) + ((i++) + (++i/(i--))/k//) + 6.000.500.5";
+    //
+    //         let errors_actual: Vec<SyntaxError> =
+    //             SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
+    //         let errors_expected: Vec<SyntaxError> = vec![];
+    //         assert_eq!(errors_actual, errors_expected);
+    //     }
+    //
+    //     #[test]
+    //     fn test_syntax_15() {
+    //         let code = "**f(*k, -p+1, ))2.1.1 + 1.8q((-5x ++ i)";
+    //
+    //         let errors_actual: Vec<SyntaxError> =
+    //             SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
+    //         let errors_expected: Vec<SyntaxError> = vec![];
+    //         assert_eq!(errors_actual, errors_expected);
+    //     }
+    //
+    //     #[test]
+    //     fn test_syntax_16() {
+    //         let code = "/.1(2x^2-5x+7)-(-i)+ (j++)/0 - )(*f)(2, 7-x, )/q + send(-(2x+7)/A[j, i], 127.0.0.1 ) + )/";
+    //
+    //         let errors_actual: Vec<SyntaxError> =
+    //             SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
+    //         let errors_expected: Vec<SyntaxError> = vec![];
+    //         assert_eq!(errors_actual, errors_expected);
+    //     }
+    //
+    //     #[test]
+    //     fn test_syntax_17() {
+    //         let code =
+    //             "*101*1#(t-q)(t+q)//dt - (int*)f(8t, -(k/h)A[i+6.]), exp(), ))(t-k*8.00.1/.0";
+    //
+    //         let errors_actual: Vec<SyntaxError> =
+    //             SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
+    //         let errors_expected: Vec<SyntaxError> = vec![];
+    //         assert_eq!(errors_actual, errors_expected);
+    //     }
 }
