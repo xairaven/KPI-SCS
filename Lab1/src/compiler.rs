@@ -3,14 +3,14 @@ use crate::utils::StringExtension;
 use colored::Colorize;
 use std::ops::Add;
 
-pub fn compile(source: &str) -> String {
+pub fn compile(source: &str, is_pretty: bool) -> String {
     let tokens = tokenizer::tokenize(source);
     let syntax_errors = SyntaxAnalyzer::new(tokens).analyze();
 
-    report(source, syntax_errors)
+    report(source, syntax_errors, is_pretty)
 }
 
-fn report(source: &str, syntax_errors: Vec<SyntaxError>) -> String {
+fn report(source: &str, syntax_errors: Vec<SyntaxError>, is_pretty: bool) -> String {
     let mut result = String::new();
 
     let first_line = match syntax_errors.len() {
@@ -30,14 +30,17 @@ fn report(source: &str, syntax_errors: Vec<SyntaxError>) -> String {
     result.push_str(&format!("{}\n", source));
 
     if !syntax_errors.is_empty() {
-        let errors = format_errors(source, syntax_errors);
+        let errors = match is_pretty {
+            true => format_errors_pretty(source, syntax_errors),
+            false => format_errors(syntax_errors),
+        };
         result.push_str(&format!("{}\n", errors));
     }
 
     result
 }
 
-fn format_errors(source: &str, mut syntax_errors: Vec<SyntaxError>) -> String {
+fn format_errors_pretty(source: &str, mut syntax_errors: Vec<SyntaxError>) -> String {
     let mut result = String::new();
 
     syntax_errors.sort_by(|a, b| a.token.position.start.cmp(&b.token.position.start));
@@ -73,6 +76,18 @@ fn format_errors(source: &str, mut syntax_errors: Vec<SyntaxError>) -> String {
         }
         line.push_str(&format!("{}\n", error));
         result.push_str(&line);
+    }
+
+    result
+}
+
+fn format_errors(mut syntax_errors: Vec<SyntaxError>) -> String {
+    let mut result = String::new();
+
+    syntax_errors.sort_by(|a, b| a.token.position.start.cmp(&b.token.position.start));
+
+    for error in syntax_errors {
+        result.push_str(&format!("{}\n", error));
     }
 
     result

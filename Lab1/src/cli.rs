@@ -15,6 +15,9 @@ pub struct Cli {
         help = "Output file name. If not provided, output will be printed to console."
     )]
     pub output_file: Option<PathBuf>,
+
+    #[arg(short = 'p', action, long, help = "Pretty print output.")]
+    pub pretty: bool,
 }
 
 impl Cli {
@@ -23,7 +26,7 @@ impl Cli {
 
         let code = io::read_code_file(&context.code_file)?;
 
-        let output = compiler::compile(&code);
+        let output = compiler::compile(&code, context.pretty);
 
         let output_destination = io::define_output_destination(context.output_file);
 
