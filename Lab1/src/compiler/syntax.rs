@@ -30,6 +30,7 @@ macro_rules! syntax_error {
 #[derive(Debug, PartialEq, Eq)]
 pub enum SyntaxErrorKind {
     UnexpectedFunctionName,
+    UnexpectedEndOfExpression,
     UnexpectedOperand,
     UnexpectedOperator,
     UnexpectedComma,
@@ -42,77 +43,31 @@ pub enum SyntaxErrorKind {
 impl std::fmt::Display for SyntaxError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let text = match self.kind {
-            SyntaxErrorKind::UnexpectedOperand | SyntaxErrorKind::UnexpectedOperator => {
-                let token = match &self.token.kind {
-                    TokenType::Identifier | TokenType::Number => {
-                        match &self.token.value {
-                            None => format!("{}", "UNDEFINED".bright_purple().italic()),
-                            Some(value) => format!("'{}'", value),
-                        }
-                    },
-                    _ => self.token.kind.to_string(),
-                };
-
-                let unexpected = match self.kind {
-                    SyntaxErrorKind::UnexpectedOperand => "operand",
-                    SyntaxErrorKind::UnexpectedOperator => "operator",
-                    _ => unreachable!(),
-                };
-                format!(
-                    "{:30} {}",
-                    format!("Unexpected {} {}.", unexpected, token).bold().red(),
-                    self.token.display_position().bold()
-                )
+            SyntaxErrorKind::UnexpectedOperand => match &self.token.value {
+                None => "Unexpected operand.",
+                Some(value) => &format!("Unexpected operand '{}'.", value),
             },
-            SyntaxErrorKind::UnexpectedFunctionName => {
-                format!(
-                    "{:30} {}",
-                    format!(
-                        "Unexpected function name \"{}\".",
-                        match &self.token.value {
-                            None => "<UNDEFINED>",
-                            Some(value) => value,
-                        }
-                    ),
-                    self.token.display_position().bold()
-                )
+            SyntaxErrorKind::UnexpectedOperator => match &self.token.value {
+                None => "Unexpected operator.",
+                Some(value) => &format!("Unexpected operator '{}'.", value),
             },
-            SyntaxErrorKind::UnexpectedComma => {
-                format!(
-                    "{:30} {}",
-                    "Unexpected comma.".bold().red(),
-                    self.token.display_position().bold()
-                )
+            SyntaxErrorKind::UnexpectedFunctionName => match &self.token.value {
+                None => "Unexpected function name.",
+                Some(value) => &format!("Unexpected function name '{}'.", value),
             },
-            SyntaxErrorKind::UnexpectedDot => {
-                format!(
-                    "{:30} {}",
-                    "Unexpected dot.".bold().red(),
-                    self.token.display_position().bold()
-                )
-            },
-            SyntaxErrorKind::UnexpectedParenthesis => {
-                format!(
-                    "{:30} {}",
-                    "Unexpected parenthesis.".bold().red(),
-                    self.token.display_position().bold()
-                )
-            },
-            SyntaxErrorKind::UnmatchedParenthesis => {
-                format!(
-                    "{:30} {}",
-                    "Unmatched parenthesis.".bold().red(),
-                    self.token.display_position().bold()
-                )
-            },
-            SyntaxErrorKind::UnknownToken => {
-                format!(
-                    "{:30} {}",
-                    "Unknown token.".bold().red(),
-                    self.token.display_position().bold()
-                )
-            },
+            SyntaxErrorKind::UnexpectedComma => "Unexpected comma.",
+            SyntaxErrorKind::UnexpectedDot => "Unexpected dot.",
+            SyntaxErrorKind::UnexpectedParenthesis => "Unexpected parenthesis.",
+            SyntaxErrorKind::UnmatchedParenthesis => "Unmatched parenthesis.",
+            SyntaxErrorKind::UnknownToken => "Unknown token.",
+            SyntaxErrorKind::UnexpectedEndOfExpression => "Unexpected end of expression.",
         };
+
+        let text = format!(
+            "{:30} {}",
+            text.bold().red(),
+            self.token.display_position().bold()
+        );
 
         write!(f, "{}", text)
     }
@@ -374,7 +329,8 @@ impl SyntaxAnalyzer {
         if let Some(last) = self.tokens.last()
             && self.status.expect_operand
         {
-            self.errors.push(syntax_error!(UnexpectedOperand, last));
+            self.errors
+                .push(syntax_error!(UnexpectedEndOfExpression, last));
         }
 
         self.errors
