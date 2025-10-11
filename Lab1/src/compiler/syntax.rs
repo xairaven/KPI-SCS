@@ -22,6 +22,46 @@ pub enum SyntaxError {
     UnknownToken(Token),
 }
 
+impl std::fmt::Display for SyntaxError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let text = match self {
+            Self::UnexpectedOperand(t) => {
+                let operand = match &t.kind {
+                    TokenType::Identifier(value) | TokenType::Number(value) => {
+                        format!("'{}'", value)
+                    },
+                    _ => t.kind.display_type(),
+                };
+
+                format!("Unexpected operand {}. {}", operand, t.display_position())
+            },
+            Self::UnexpectedOperator(t) => {
+                let operator = match &t.kind {
+                    TokenType::Identifier(value) | TokenType::Number(value) => {
+                        format!("'{}'", value)
+                    },
+                    _ => t.kind.display_type(),
+                };
+
+                format!("Unexpected operator {}. {}", operator, t.display_position())
+            },
+            Self::UnexpectedComma(t) => {
+                format!("Unexpected comma. {}", t.display_position())
+            },
+            Self::UnexpectedDot(t) => format!("Unexpected dot. {}", t.display_position()),
+            Self::UnexpectedParenthesis(t) => {
+                format!("Unexpected parenthesis. {}", t.display_position())
+            },
+            Self::UnmatchedParenthesis(t) => {
+                format!("Unmatched parenthesis. {}", t.display_position())
+            },
+            Self::UnknownToken(t) => format!("Unknown token. {}", t.display_position()),
+        };
+
+        write!(f, "{}", text)
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct Status {
     pub expect_operand: bool,
