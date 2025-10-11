@@ -1,6 +1,5 @@
 use crate::error::{Error, IOError};
 use crate::io::OutputDestination::{Console, File};
-use colored::Colorize;
 
 pub fn read_code_file(path: &std::path::PathBuf) -> Result<String, Error> {
     std::fs::read_to_string(path).map_err(|e| {
@@ -30,8 +29,6 @@ pub fn define_output_destination(
 pub fn write_output(
     result: &str, output_destination: OutputDestination,
 ) -> Result<(), Error> {
-    let result = format!("{}\n\n{result}", "OK!".green().bold());
-
     match output_destination {
         Console => {
             println!("{}", result);
