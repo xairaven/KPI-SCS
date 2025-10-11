@@ -6,6 +6,20 @@ pub struct Token {
     pub position: Range<usize>,
 }
 
+impl Token {
+    pub fn display_position(&self) -> String {
+        if self.position.start + 1 == self.position.end {
+            format!("[Position: {}]", self.position.start + 1)
+        } else {
+            format!(
+                "[Position: {}..{}]",
+                self.position.start + 1,
+                self.position.end
+            )
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TokenType {
     Identifier(String),
