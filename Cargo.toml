@@ -14,8 +14,6 @@ collapsible_if = "warn"
 collapsible_else_if = "warn"
 collapsible_match = "warn"
 collapsible_str_replace = "warn"
-expect_used = "deny"
-panic = "deny"
 unwrap_used = "deny"
 
 [workspace.lints.rust]
