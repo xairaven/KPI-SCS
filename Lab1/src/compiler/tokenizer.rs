@@ -50,6 +50,32 @@ pub enum TokenType {
     Unknown(char),
 }
 
+impl TokenType {
+    pub fn display_type(&self) -> String {
+        match self {
+            TokenType::Identifier(_) => "Identifier".to_string(),
+            TokenType::Number(_) => "Number".to_string(),
+            TokenType::Plus => "Plus".to_string(),
+            TokenType::Minus => "Minus".to_string(),
+            TokenType::Asterisk => "Asterisk".to_string(),
+            TokenType::Slash => "Slash".to_string(),
+            TokenType::Percent => "Percent".to_string(),
+            TokenType::LeftParenthesis => "Left Parenthesis".to_string(),
+            TokenType::RightParenthesis => "Right Parenthesis".to_string(),
+            TokenType::ExclamationMark => "Exclamation Mark".to_string(),
+            TokenType::Ampersand => "Ampersand".to_string(),
+            TokenType::Pipe => "Pipe".to_string(),
+            TokenType::Dot => "Dot".to_string(),
+            TokenType::Comma => "Comma".to_string(),
+            TokenType::QuotationMark => "Quotation Mark".to_string(),
+            TokenType::Space => "Space".to_string(),
+            TokenType::Tab => "Tab".to_string(),
+            TokenType::NewLine => "New Line".to_string(),
+            TokenType::Unknown(_) => "Unknown".to_string(),
+        }
+    }
+}
+
 macro_rules! token {
     ($token_type:expr, $position:literal) => {
         Token {
