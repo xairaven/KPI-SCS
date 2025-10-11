@@ -80,9 +80,6 @@ pub fn analyze(tokens: Vec<Token>) -> Vec<SyntaxError> {
                     errors.push(SyntaxError::UnmatchedParenthesis(token.clone()));
                 }
             },
-            TokenType::LeftBracket => {},
-            TokenType::RightBracket => {},
-            TokenType::EqualSign => {},
             TokenType::ExclamationMark => {
                 if status.operator_expected {
                     errors.push(SyntaxError::UnexpectedOperand(token.clone()));
@@ -97,9 +94,6 @@ pub fn analyze(tokens: Vec<Token>) -> Vec<SyntaxError> {
                     errors.push(SyntaxError::UnexpectedOperand(token.clone()));
                     continue;
                 }
-            },
-            TokenType::Semicolon | TokenType::Colon => {
-                errors.push(SyntaxError::ReservedOperand(token.clone()));
             },
             TokenType::QuotationMark => {
                 status.string_expected = !status.string_expected;
