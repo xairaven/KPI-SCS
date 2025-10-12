@@ -29,6 +29,7 @@ macro_rules! syntax_error {
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum SyntaxErrorKind {
+    IncorrectVariableName,
     IncorrectFloat,
     IncorrectHexLiteral,
     IncorrectBinaryLiteral,
@@ -46,6 +47,7 @@ pub enum SyntaxErrorKind {
 impl std::fmt::Display for SyntaxError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let text = match self.kind {
+            SyntaxErrorKind::IncorrectVariableName => "Incorrect variable name.",
             SyntaxErrorKind::IncorrectFloat => "Incorrect float.",
             SyntaxErrorKind::IncorrectHexLiteral => match &self.token.value {
                 None => "Incorrect hexadecimal literal.",
@@ -254,6 +256,20 @@ impl SyntaxAnalyzer {
                             self.status.expect_operator = true;
                             continue;
                         }
+                    }
+
+                    // Bad variable name?
+                    if let Some(next) = self.peek_next()
+                        && next.kind == TokenType::Identifier
+                    {
+                        // If next token is identifier, then it's bad variable name
+                        self.errors
+                            .push(syntax_error!(IncorrectVariableName, token));
+                        // Skipping bad variable name
+                        self.current_index += 2;
+                        self.status.expect_operand = false;
+                        self.status.expect_operator = true;
+                        continue;
                     }
 
                     // Integer literal
@@ -465,10 +481,10 @@ mod tests {
             test_error!(UnexpectedOperator, TokenType::Minus, 0),
             test_error!(UnexpectedOperator, TokenType::Plus, 4),
             test_error!(
-                UnexpectedOperand,
-                TokenType::Identifier,
-                11,
-                "v".to_string()
+                IncorrectVariableName,
+                TokenType::Number,
+                10,
+                "2".to_string()
             ),
             test_error!(UnmatchedParenthesis, TokenType::LeftParenthesis, 17),
             test_error!(UnexpectedComma, TokenType::Comma, 24),
@@ -567,10 +583,10 @@ mod tests {
             test_error!(UnexpectedOperator, TokenType::ExclamationMark, 39),
             test_error!(UnexpectedOperand, TokenType::Number, 40, "5".to_string()),
             test_error!(
-                UnexpectedOperand,
-                TokenType::Identifier,
-                49..53,
-                "var_".to_string()
+                IncorrectVariableName,
+                TokenType::Number,
+                48,
+                "6".to_string()
             ),
             test_error!(UnknownToken, TokenType::Unknown, 56, "$".to_string()),
             test_error!(UnknownToken, TokenType::Unknown, 61, "?".to_string()),
@@ -585,12 +601,7 @@ mod tests {
         let errors_actual: Vec<SyntaxError> =
             SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
         let errors_expected: Vec<SyntaxError> = vec![
-            test_error!(
-                UnexpectedOperand,
-                TokenType::Identifier,
-                7..9,
-                "nb".to_string()
-            ),
+            test_error!(IncorrectVariableName, TokenType::Number, 6, "2".to_string()),
             test_error!(
                 IncorrectHexLiteral,
                 TokenType::Identifier,
@@ -604,22 +615,22 @@ mod tests {
                 "b20".to_string()
             ),
             test_error!(
-                UnexpectedOperand,
-                TokenType::Identifier,
-                47..49,
-                "Rh".to_string()
+                IncorrectVariableName,
+                TokenType::Number,
+                46,
+                "0".to_string()
             ),
             test_error!(
-                UnexpectedOperand,
-                TokenType::Identifier,
-                55..56,
-                "b".to_string()
+                IncorrectVariableName,
+                TokenType::Number,
+                52..55,
+                "010".to_string()
             ),
             test_error!(
-                UnexpectedOperand,
-                TokenType::Identifier,
-                59..60,
-                "b".to_string()
+                IncorrectVariableName,
+                TokenType::Number,
+                57..59,
+                "20".to_string()
             ),
         ];
         assert_eq!(errors_actual, errors_expected);
@@ -647,10 +658,10 @@ mod tests {
                 "ab".to_string()
             ),
             test_error!(
-                UnexpectedOperand,
-                TokenType::Identifier,
-                44,
-                "f".to_string()
+                IncorrectVariableName,
+                TokenType::Number,
+                43,
+                "9".to_string()
             ),
             test_error!(UnexpectedDot, TokenType::Dot, 45),
             test_error!(
