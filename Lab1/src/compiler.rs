@@ -62,6 +62,13 @@ fn format_errors_pretty(source: &str, syntax_errors: Vec<SyntaxError>) -> String
     }
     result.push_str(&first_line);
 
+    let biggest_error_length = syntax_errors
+        .iter()
+        .map(|error| error.to_string().len())
+        .max()
+        .unwrap_or(0)
+        + 1;
+
     // Other lines
     for error in syntax_errors.iter().rev() {
         // One for -, another one for \n
@@ -72,7 +79,7 @@ fn format_errors_pretty(source: &str, syntax_errors: Vec<SyntaxError>) -> String
         for index in (error.token.position.start + 1)..(length + 1) {
             line.replace_char(index, '_');
         }
-        line.push_str(&format!("{}\n", error));
+        line.push_str(&format!("{}\n", error.display(biggest_error_length)));
         result.push_str(&line);
     }
 
@@ -82,8 +89,15 @@ fn format_errors_pretty(source: &str, syntax_errors: Vec<SyntaxError>) -> String
 fn format_errors(syntax_errors: Vec<SyntaxError>) -> String {
     let mut result = String::new();
 
+    let biggest_error_length = syntax_errors
+        .iter()
+        .map(|error| error.to_string().len())
+        .max()
+        .unwrap_or(0)
+        + 1;
+
     for error in syntax_errors {
-        result.push_str(&format!("{}\n", error));
+        result.push_str(&format!("{}\n", error.display(biggest_error_length)));
     }
 
     result

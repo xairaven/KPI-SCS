@@ -70,13 +70,18 @@ impl std::fmt::Display for SyntaxError {
             SyntaxErrorKind::UnexpectedEndOfExpression => "Unexpected end of expression.",
         };
 
-        let text = format!(
-            "{:30} {}",
-            text.bold().red(),
-            self.token.display_position().bold()
-        );
-
         write!(f, "{}", text)
+    }
+}
+
+impl SyntaxError {
+    pub fn display(&self, column_length: usize) -> String {
+        format!(
+            "{:fill$} {}",
+            self.to_string().bold().red(),
+            self.token.display_position().bold(),
+            fill = column_length,
+        )
     }
 }
 
@@ -85,12 +90,6 @@ pub struct Status {
     pub expect_operand: bool,
     pub expect_operator: bool,
     pub in_string: bool,
-}
-
-impl Status {
-    pub fn clear(&mut self) {
-        *self = Status::default();
-    }
 }
 
 impl SyntaxAnalyzer {
