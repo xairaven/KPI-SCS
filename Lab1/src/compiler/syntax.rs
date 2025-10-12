@@ -29,6 +29,7 @@ macro_rules! syntax_error {
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum SyntaxErrorKind {
+    IncorrectFloat,
     IncorrectHexLiteral,
     IncorrectBinaryLiteral,
     UnexpectedFunctionName,
@@ -45,6 +46,7 @@ pub enum SyntaxErrorKind {
 impl std::fmt::Display for SyntaxError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let text = match self.kind {
+            SyntaxErrorKind::IncorrectFloat => "Incorrect float.",
             SyntaxErrorKind::IncorrectHexLiteral => match &self.token.value {
                 None => "Incorrect hexadecimal literal.",
                 Some(value) => &format!("Incorrect hexadecimal literal '0{}'.", value),
@@ -237,7 +239,7 @@ impl SyntaxAnalyzer {
                                 continue;
                             } else {
                                 // Something else after dot - error
-                                self.errors.push(syntax_error!(UnexpectedDot, second));
+                                self.errors.push(syntax_error!(IncorrectFloat, next));
                                 // Skipping number with the dot
                                 self.current_index += 2;
                                 self.status.expect_operand = false;
@@ -623,16 +625,50 @@ mod tests {
         assert_eq!(errors_actual, errors_expected);
     }
 
-    //     #[test]
-    //     fn test_syntax_07() {
-    //         let code = "0.71/0.72.3 + .3 + 127.0.0.1*8. + 6.07ab - 9f.89hgt";
-    //
-    //         let errors_actual: Vec<SyntaxError> =
-    //             SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
-    //         let errors_expected: Vec<SyntaxError> = vec![];
-    //         assert_eq!(errors_actual, errors_expected);
-    //     }
-    //
+    #[test]
+    fn test_syntax_07() {
+        let code = "0.71/0.72.3 + .3 + 127.0.0.1*8. + 6.07ab - 9f.89hgt";
+
+        let errors_actual: Vec<SyntaxError> =
+            SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
+        let errors_expected: Vec<SyntaxError> = vec![
+            test_error!(UnexpectedDot, TokenType::Dot, 9),
+            test_error!(UnexpectedOperand, TokenType::Number, 10, "3".to_string()),
+            test_error!(UnexpectedDot, TokenType::Dot, 14),
+            test_error!(UnexpectedDot, TokenType::Dot, 24),
+            test_error!(UnexpectedOperand, TokenType::Number, 25, "0".to_string()),
+            test_error!(UnexpectedDot, TokenType::Dot, 26),
+            test_error!(UnexpectedOperand, TokenType::Number, 27, "1".to_string()),
+            test_error!(IncorrectFloat, TokenType::Dot, 30),
+            test_error!(
+                UnexpectedOperand,
+                TokenType::Identifier,
+                38..40,
+                "ab".to_string()
+            ),
+            test_error!(
+                UnexpectedOperand,
+                TokenType::Identifier,
+                44,
+                "f".to_string()
+            ),
+            test_error!(UnexpectedDot, TokenType::Dot, 45),
+            test_error!(
+                UnexpectedOperand,
+                TokenType::Number,
+                46..48,
+                "89".to_string()
+            ),
+            test_error!(
+                UnexpectedOperand,
+                TokenType::Identifier,
+                48..51,
+                "hgt".to_string()
+            ),
+        ];
+        assert_eq!(errors_actual, errors_expected);
+    }
+
     //     #[test]
     //     fn test_syntax_08() {
     //         let code = ")a+b( -(g+h)(g-k))*()) + (-b(t-2*x*(5) + A[7][2-x]";
