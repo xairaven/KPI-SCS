@@ -29,6 +29,8 @@ macro_rules! syntax_error {
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum SyntaxErrorKind {
+    IncorrectHexLiteral,
+    IncorrectBinaryLiteral,
     UnexpectedFunctionName,
     UnexpectedEndOfExpression,
     UnexpectedOperand,
@@ -43,6 +45,14 @@ pub enum SyntaxErrorKind {
 impl std::fmt::Display for SyntaxError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let text = match self.kind {
+            SyntaxErrorKind::IncorrectHexLiteral => match &self.token.value {
+                None => "Incorrect hexadecimal literal.",
+                Some(value) => &format!("Incorrect hexadecimal literal '0{}'.", value),
+            },
+            SyntaxErrorKind::IncorrectBinaryLiteral => match &self.token.value {
+                None => "Incorrect binary literal.",
+                Some(value) => &format!("Incorrect binary literal '0{}'.", value),
+            },
             SyntaxErrorKind::UnexpectedOperand => match &self.token.value {
                 None => "Unexpected operand.",
                 Some(value) => &format!("Unexpected operand '{}'.", value),
@@ -166,6 +176,51 @@ impl SyntaxAnalyzer {
                     if !self.status.expect_operand {
                         self.errors.push(syntax_error!(UnexpectedOperand, token));
                         // Continuing, but considering that operand was read
+                    }
+
+                    // Hex Validating
+                    if let Some(number) = &token.value
+                        && number.eq("0")
+                        && let Some(next) = self.peek_next()
+                        && next.kind == TokenType::Identifier
+                        && let Some(value) = &next.value
+                        && value.to_ascii_lowercase().starts_with('x')
+                        && value.len() > 1
+                    {
+                        let hex_part = &value[1..];
+                        if !hex_part.chars().all(|c| c.is_ascii_hexdigit()) {
+                            // Incorrect hex literal
+                            self.errors.push(syntax_error!(IncorrectHexLiteral, next));
+                        }
+
+                        // Anyway, considering that hex identifier was read
+                        self.current_index += 2;
+                        self.status.expect_operand = false;
+                        self.status.expect_operator = true;
+                        continue;
+                    }
+
+                    // Binary Validating
+                    if let Some(number) = &token.value
+                        && number.eq("0")
+                        && let Some(next) = self.peek_next()
+                        && next.kind == TokenType::Identifier
+                        && let Some(value) = &next.value
+                        && value.to_ascii_lowercase().starts_with('b')
+                        && value.len() > 1
+                    {
+                        let binary_part = &value[1..];
+                        if !binary_part.chars().all(|c| c == '0' || c == '1') {
+                            // Incorrect binary literal
+                            self.errors
+                                .push(syntax_error!(IncorrectBinaryLiteral, next));
+                        }
+
+                        // Anyway, considering that hex identifier was read
+                        self.current_index += 2;
+                        self.status.expect_operand = false;
+                        self.status.expect_operator = true;
+                        continue;
                     }
 
                     // Float validating
@@ -521,16 +576,53 @@ mod tests {
         assert_eq!(errors_actual, errors_expected);
     }
 
-    //     #[test]
-    //     fn test_syntax_06() {
-    //         let code = "125 + 2nb - 0xAB * 0x0R + 0b010 * 0b20+ ABh * 0Rh + 010b*20b";
-    //
-    //         let errors_actual: Vec<SyntaxError> =
-    //             SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
-    //         let errors_expected: Vec<SyntaxError> = vec![];
-    //         assert_eq!(errors_actual, errors_expected);
-    //     }
-    //
+    #[test]
+    fn test_syntax_06() {
+        let code = "125 + 2nb - 0xAB * 0x0R + 0b010 * 0b20+ ABh * 0Rh + 010b*20b";
+
+        let errors_actual: Vec<SyntaxError> =
+            SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
+        let errors_expected: Vec<SyntaxError> = vec![
+            test_error!(
+                UnexpectedOperand,
+                TokenType::Identifier,
+                7..9,
+                "nb".to_string()
+            ),
+            test_error!(
+                IncorrectHexLiteral,
+                TokenType::Identifier,
+                20..23,
+                "x0R".to_string()
+            ),
+            test_error!(
+                IncorrectBinaryLiteral,
+                TokenType::Identifier,
+                35..38,
+                "b20".to_string()
+            ),
+            test_error!(
+                UnexpectedOperand,
+                TokenType::Identifier,
+                47..49,
+                "Rh".to_string()
+            ),
+            test_error!(
+                UnexpectedOperand,
+                TokenType::Identifier,
+                55..56,
+                "b".to_string()
+            ),
+            test_error!(
+                UnexpectedOperand,
+                TokenType::Identifier,
+                59..60,
+                "b".to_string()
+            ),
+        ];
+        assert_eq!(errors_actual, errors_expected);
+    }
+
     //     #[test]
     //     fn test_syntax_07() {
     //         let code = "0.71/0.72.3 + .3 + 127.0.0.1*8. + 6.07ab - 9f.89hgt";
