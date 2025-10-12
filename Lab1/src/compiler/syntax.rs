@@ -174,7 +174,8 @@ impl SyntaxAnalyzer {
                     // Number - operand
                     if !self.status.expect_operand {
                         self.errors.push(syntax_error!(UnexpectedOperand, token));
-                        // Continuing, but considering that operand was read
+                        self.current_index += 1;
+                        continue;
                     }
 
                     // Hex Validating
