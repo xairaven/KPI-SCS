@@ -27,7 +27,7 @@ fn report(source: &str, syntax_errors: Vec<SyntaxError>, is_pretty: bool) -> Str
     result.push_str(&first_line);
 
     result.push_str(&format!("\n{}:\n", "Code".bold().yellow()));
-    result.push_str(&format!("{}\n", source));
+    result.push_str(&format!("{}\n", source.replace("\n", " ")));
 
     if !syntax_errors.is_empty() {
         let errors = match is_pretty {
