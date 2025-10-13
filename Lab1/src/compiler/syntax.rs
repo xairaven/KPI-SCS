@@ -5,12 +5,13 @@ use std::collections::VecDeque;
 #[derive(Debug)]
 pub struct SyntaxAnalyzer {
     tokens: Vec<Token>,
-
-    errors: Vec<SyntaxError>,
     current_index: usize,
-    parentheses_stack: VecDeque<Token>,
-    brackets_stack: VecDeque<Token>,
+
     status: Status,
+    errors: Vec<SyntaxError>,
+
+    brackets_stack: VecDeque<Token>,
+    parentheses_stack: VecDeque<Token>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -30,61 +31,61 @@ macro_rules! syntax_error {
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum SyntaxErrorKind {
-    EmptyParentheses,
     EmptyBrackets,
-    IncorrectVariableName,
-    IncorrectFloat,
-    IncorrectHexLiteral,
-    IncorrectBinaryLiteral,
+    EmptyParentheses,
+    InvalidBinaryLiteral,
+    InvalidFloat,
+    InvalidFunctionName,
+    InvalidHexLiteral,
+    InvalidVariableName,
     MissingArgument,
-    UnexpectedFunctionName,
-    UnexpectedEndOfExpression,
-    UnexpectedOperand,
-    UnexpectedOperator,
+    UnexpectedBrackets,
     UnexpectedComma,
     UnexpectedDot,
+    UnexpectedEndOfExpression,
     UnexpectedNewLine,
+    UnexpectedOperand,
+    UnexpectedOperator,
     UnexpectedParenthesis,
-    UnexpectedBrackets,
-    UnmatchedParenthesis,
-    UnmatchedBrackets,
     UnknownToken,
+    UnmatchedBrackets,
+    UnmatchedParenthesis,
 }
 
 impl std::fmt::Display for SyntaxError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let text = match self.kind {
-            SyntaxErrorKind::EmptyParentheses => "Empty function or grouping.",
             SyntaxErrorKind::EmptyBrackets => "Empty array access.",
-            SyntaxErrorKind::IncorrectVariableName => "Incorrect variable name.",
-            SyntaxErrorKind::IncorrectFloat => "Incorrect float.",
-            SyntaxErrorKind::IncorrectHexLiteral => match &self.token.value {
-                None => "Incorrect hexadecimal literal.",
-                Some(value) => &format!("Incorrect hexadecimal literal '0{}'.", value),
+            SyntaxErrorKind::EmptyParentheses => "Empty function or grouping.",
+            SyntaxErrorKind::InvalidBinaryLiteral => match &self.token.value {
+                None => "Invalid binary literal.",
+                Some(value) => &format!("Invalid binary literal '0{}'.", value),
             },
-            SyntaxErrorKind::IncorrectBinaryLiteral => match &self.token.value {
-                None => "Incorrect binary literal.",
-                Some(value) => &format!("Incorrect binary literal '0{}'.", value),
+            SyntaxErrorKind::InvalidFloat => "Invalid float.",
+            SyntaxErrorKind::InvalidFunctionName => match &self.token.value {
+                None => "Unexpected function name.",
+                Some(value) => &format!("Unexpected function name '{}'.", value),
             },
+            SyntaxErrorKind::InvalidHexLiteral => match &self.token.value {
+                None => "Invalid hexadecimal literal.",
+                Some(value) => &format!("Invalid hexadecimal literal '0{}'.", value),
+            },
+            SyntaxErrorKind::InvalidVariableName => "Invalid variable name.",
             SyntaxErrorKind::MissingArgument => "Missing function argument.",
+            SyntaxErrorKind::UnexpectedBrackets => "Unexpected brackets.",
+            SyntaxErrorKind::UnexpectedComma => "Unexpected comma.",
+            SyntaxErrorKind::UnexpectedDot => "Unexpected dot.",
+            SyntaxErrorKind::UnexpectedEndOfExpression => "Unexpected end of expression.",
+            SyntaxErrorKind::UnexpectedNewLine => "Unexpected newline.",
             SyntaxErrorKind::UnexpectedOperand => match &self.token.value {
                 None => "Unexpected operand.",
                 Some(value) => &format!("Unexpected operand '{}'.", value),
             },
             SyntaxErrorKind::UnexpectedOperator => "Unexpected operator.",
-            SyntaxErrorKind::UnexpectedFunctionName => match &self.token.value {
-                None => "Unexpected function name.",
-                Some(value) => &format!("Unexpected function name '{}'.", value),
-            },
-            SyntaxErrorKind::UnexpectedComma => "Unexpected comma.",
-            SyntaxErrorKind::UnexpectedDot => "Unexpected dot.",
             SyntaxErrorKind::UnexpectedParenthesis => "Unexpected parenthesis.",
-            SyntaxErrorKind::UnexpectedBrackets => "Unexpected brackets.",
-            SyntaxErrorKind::UnexpectedNewLine => "Unexpected newline.",
-            SyntaxErrorKind::UnmatchedParenthesis => "Unmatched parenthesis.",
-            SyntaxErrorKind::UnmatchedBrackets => "Unmatched brackets.",
             SyntaxErrorKind::UnknownToken => "Unknown token.",
-            SyntaxErrorKind::UnexpectedEndOfExpression => "Unexpected end of expression.",
+            SyntaxErrorKind::UnmatchedBrackets => "Unmatched brackets.",
+            SyntaxErrorKind::UnmatchedParenthesis => "Unmatched parenthesis.",
         };
 
         write!(f, "{}", text)
@@ -113,12 +114,13 @@ impl SyntaxAnalyzer {
     pub fn new(tokens: Vec<Token>) -> Self {
         Self {
             tokens,
+            current_index: 0,
 
             errors: Vec::new(),
-            current_index: 0,
-            parentheses_stack: VecDeque::new(),
-            brackets_stack: VecDeque::new(),
             status: Status::default(),
+
+            brackets_stack: VecDeque::new(),
+            parentheses_stack: VecDeque::new(),
         }
     }
 
@@ -143,21 +145,17 @@ impl SyntaxAnalyzer {
                         }
                         self.status.in_string = true;
                         // While inside string we're considering that operand is not finished
-                        self.status.expect_operand = false;
                         self.status.expect_operator = false;
-
-                        self.current_index += 1;
-                        continue;
                     } else {
                         // Closing mark
                         self.status.in_string = false;
                         // String literal is operand
-                        self.status.expect_operand = false;
                         self.status.expect_operator = true;
-
-                        self.current_index += 1;
-                        continue;
                     }
+
+                    self.status.expect_operand = false;
+                    self.current_index += 1;
+                    continue;
                 },
 
                 _ if self.status.in_string => {
@@ -198,45 +196,31 @@ impl SyntaxAnalyzer {
                         continue;
                     }
 
-                    // Hex Validating
-                    if let Some(number) = &token.value
-                        && number.eq("0")
+                    // Binary and Hex validating
+                    if let Some(prefix) = &token.value
+                        && prefix.eq("0")
                         && let Some(next) = self.peek_next()
                         && next.kind == TokenType::Identifier
                         && let Some(value) = &next.value
-                        && value.to_ascii_lowercase().starts_with('x')
+                        && value.to_ascii_lowercase().starts_with(['x', 'b'])
                         && value.len() > 1
                     {
-                        let hex_part = &value[1..];
-                        if !hex_part.chars().all(|c| c.is_ascii_hexdigit()) {
+                        // Hex
+                        if value.to_ascii_lowercase().starts_with('x')
+                            && !value[1..].chars().all(|c| c.is_ascii_hexdigit())
+                        {
                             // Incorrect hex literal
-                            self.errors.push(syntax_error!(IncorrectHexLiteral, next));
+                            self.errors.push(syntax_error!(InvalidHexLiteral, next));
                         }
-
-                        // Anyway, considering that hex identifier was read
-                        self.current_index += 2;
-                        self.status.expect_operand = false;
-                        self.status.expect_operator = true;
-                        continue;
-                    }
-
-                    // Binary Validating
-                    if let Some(number) = &token.value
-                        && number.eq("0")
-                        && let Some(next) = self.peek_next()
-                        && next.kind == TokenType::Identifier
-                        && let Some(value) = &next.value
-                        && value.to_ascii_lowercase().starts_with('b')
-                        && value.len() > 1
-                    {
-                        let binary_part = &value[1..];
-                        if !binary_part.chars().all(|c| c == '0' || c == '1') {
+                        // Binary
+                        else if value.to_ascii_lowercase().starts_with('b')
+                            && !value[1..].chars().all(|c| c == '0' || c == '1')
+                        {
                             // Incorrect binary literal
-                            self.errors
-                                .push(syntax_error!(IncorrectBinaryLiteral, next));
+                            self.errors.push(syntax_error!(InvalidBinaryLiteral, next));
                         }
 
-                        // Anyway, considering that hex identifier was read
+                        // Anyway, considering that identifier was read
                         self.current_index += 2;
                         self.status.expect_operand = false;
                         self.status.expect_operator = true;
@@ -252,26 +236,20 @@ impl SyntaxAnalyzer {
                                 // Correct float! Number-Dot-Number
                                 // Next token - the third
                                 self.current_index += 3;
-                                self.status.expect_operand = false;
-                                self.status.expect_operator = true;
-                                continue;
                             } else {
                                 // Something else after dot - error
-                                self.errors.push(syntax_error!(IncorrectFloat, next));
+                                self.errors.push(syntax_error!(InvalidFloat, next));
                                 // Skipping number with the dot
                                 self.current_index += 2;
-                                self.status.expect_operand = false;
-                                self.status.expect_operator = true;
-                                continue;
                             }
                         } else {
                             // Dot in the end - error
                             self.errors.push(syntax_error!(UnexpectedOperator, next));
                             self.current_index += 2;
-                            self.status.expect_operand = false;
-                            self.status.expect_operator = true;
-                            continue;
                         }
+                        self.status.expect_operand = false;
+                        self.status.expect_operator = true;
+                        continue;
                     }
 
                     // Bad variable name?
@@ -283,12 +261,10 @@ impl SyntaxAnalyzer {
                             && second.kind == TokenType::LeftParenthesis
                         {
                             // Function name cannot start with a number
-                            self.errors
-                                .push(syntax_error!(UnexpectedFunctionName, token));
+                            self.errors.push(syntax_error!(InvalidFunctionName, token));
                         } else {
                             // If next token is identifier, then it's bad variable name
-                            self.errors
-                                .push(syntax_error!(IncorrectVariableName, token));
+                            self.errors.push(syntax_error!(InvalidVariableName, token));
                         }
 
                         // Skipping invalid identifier
@@ -407,7 +383,7 @@ impl SyntaxAnalyzer {
                     {
                         // Function name cannot start with a number
                         self.errors
-                            .push(syntax_error!(UnexpectedFunctionName, previous));
+                            .push(syntax_error!(InvalidFunctionName, previous));
                     }
 
                     if let Some(previous) = self.peek_previous()
@@ -588,24 +564,14 @@ mod tests {
             SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
         let errors_expected: Vec<SyntaxError> = vec![
             test_error!(UnexpectedOperator, TokenType::Plus, 4),
-            test_error!(
-                IncorrectVariableName,
-                TokenType::Number,
-                10,
-                "2".to_string()
-            ),
+            test_error!(InvalidVariableName, TokenType::Number, 10, "2".to_string()),
             test_error!(UnmatchedParenthesis, TokenType::LeftParenthesis, 17),
             test_error!(UnexpectedComma, TokenType::Comma, 24),
             test_error!(UnexpectedOperator, TokenType::Asterisk, 32),
             test_error!(UnexpectedDot, TokenType::Dot, 37),
             test_error!(UnexpectedOperand, TokenType::Number, 38, "2".to_string()),
             test_error!(MissingArgument, TokenType::Comma, 40),
-            test_error!(
-                UnexpectedFunctionName,
-                TokenType::Number,
-                44,
-                "8".to_string()
-            ),
+            test_error!(InvalidFunctionName, TokenType::Number, 44, "8".to_string()),
             test_error!(UnexpectedOperator, TokenType::Minus, 46),
             test_error!(UnexpectedOperator, TokenType::Asterisk, 49),
             test_error!(UnexpectedEndOfExpression, TokenType::Asterisk, 49),
@@ -676,12 +642,7 @@ mod tests {
             test_error!(UnexpectedOperator, TokenType::ExclamationMark, 39),
             test_error!(UnexpectedOperand, TokenType::Number, 40, "5".to_string()),
             test_error!(UnexpectedNewLine, TokenType::NewLine, 41),
-            test_error!(
-                IncorrectVariableName,
-                TokenType::Number,
-                48,
-                "6".to_string()
-            ),
+            test_error!(InvalidVariableName, TokenType::Number, 48, "6".to_string()),
             test_error!(UnknownToken, TokenType::Unknown, 56, "$".to_string()),
             test_error!(UnknownToken, TokenType::Unknown, 61, "?".to_string()),
         ];
@@ -695,33 +656,28 @@ mod tests {
         let errors_actual: Vec<SyntaxError> =
             SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
         let errors_expected: Vec<SyntaxError> = vec![
-            test_error!(IncorrectVariableName, TokenType::Number, 6, "2".to_string()),
+            test_error!(InvalidVariableName, TokenType::Number, 6, "2".to_string()),
             test_error!(
-                IncorrectHexLiteral,
+                InvalidHexLiteral,
                 TokenType::Identifier,
                 20..23,
                 "x0R".to_string()
             ),
             test_error!(
-                IncorrectBinaryLiteral,
+                InvalidBinaryLiteral,
                 TokenType::Identifier,
                 35..38,
                 "b20".to_string()
             ),
+            test_error!(InvalidVariableName, TokenType::Number, 46, "0".to_string()),
             test_error!(
-                IncorrectVariableName,
-                TokenType::Number,
-                46,
-                "0".to_string()
-            ),
-            test_error!(
-                IncorrectVariableName,
+                InvalidVariableName,
                 TokenType::Number,
                 52..55,
                 "010".to_string()
             ),
             test_error!(
-                IncorrectVariableName,
+                InvalidVariableName,
                 TokenType::Number,
                 57..59,
                 "20".to_string()
@@ -744,19 +700,14 @@ mod tests {
             test_error!(UnexpectedOperand, TokenType::Number, 25, "0".to_string()),
             test_error!(UnexpectedDot, TokenType::Dot, 26),
             test_error!(UnexpectedOperand, TokenType::Number, 27, "1".to_string()),
-            test_error!(IncorrectFloat, TokenType::Dot, 30),
+            test_error!(InvalidFloat, TokenType::Dot, 30),
             test_error!(
                 UnexpectedOperand,
                 TokenType::Identifier,
                 38..40,
                 "ab".to_string()
             ),
-            test_error!(
-                IncorrectVariableName,
-                TokenType::Number,
-                43,
-                "9".to_string()
-            ),
+            test_error!(InvalidVariableName, TokenType::Number, 43, "9".to_string()),
             test_error!(UnexpectedDot, TokenType::Dot, 45),
             test_error!(
                 UnexpectedOperand,
@@ -798,12 +749,7 @@ mod tests {
         let errors_actual: Vec<SyntaxError> =
             SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
         let errors_expected: Vec<SyntaxError> = vec![
-            test_error!(
-                UnexpectedFunctionName,
-                TokenType::Number,
-                0,
-                "2".to_string()
-            ),
+            test_error!(InvalidFunctionName, TokenType::Number, 0, "2".to_string()),
             test_error!(EmptyParentheses, TokenType::RightParenthesis, 17),
             test_error!(MissingArgument, TokenType::Comma, 22),
         ];
@@ -879,47 +825,22 @@ mod tests {
             test_error!(UnexpectedOperator, TokenType::Slash, 0),
             test_error!(UnexpectedOperator, TokenType::Slash, 1),
             test_error!(UnexpectedOperator, TokenType::Asterisk, 3),
-            test_error!(
-                UnexpectedFunctionName,
-                TokenType::Number,
-                11,
-                "0".to_string()
-            ),
+            test_error!(InvalidFunctionName, TokenType::Number, 11, "0".to_string()),
             test_error!(UnexpectedDot, TokenType::Dot, 24),
             test_error!(UnexpectedOperand, TokenType::Number, 25, "5".to_string()),
             test_error!(UnexpectedOperator, TokenType::Slash, 27),
-            test_error!(
-                UnexpectedFunctionName,
-                TokenType::Number,
-                28,
-                "6".to_string()
-            ),
+            test_error!(InvalidFunctionName, TokenType::Number, 28, "6".to_string()),
             test_error!(UnmatchedParenthesis, TokenType::LeftParenthesis, 29),
             test_error!(UnexpectedOperator, TokenType::Asterisk, 30),
             test_error!(UnmatchedParenthesis, TokenType::LeftParenthesis, 32),
             test_error!(UnexpectedOperator, TokenType::Plus, 55),
             test_error!(UnexpectedOperator, TokenType::Plus, 56),
-            test_error!(
-                IncorrectVariableName,
-                TokenType::Number,
-                61,
-                "6".to_string()
-            ),
+            test_error!(InvalidVariableName, TokenType::Number, 61, "6".to_string()),
             test_error!(UnknownToken, TokenType::Unknown, 63, "^".to_string()),
             test_error!(UnexpectedOperand, TokenType::Number, 64, "2".to_string()),
-            test_error!(
-                IncorrectVariableName,
-                TokenType::Number,
-                66,
-                "4".to_string()
-            ),
+            test_error!(InvalidVariableName, TokenType::Number, 66, "4".to_string()),
             test_error!(UnmatchedParenthesis, TokenType::LeftParenthesis, 79),
-            test_error!(
-                UnexpectedFunctionName,
-                TokenType::Number,
-                91,
-                "4".to_string()
-            ),
+            test_error!(InvalidFunctionName, TokenType::Number, 91, "4".to_string()),
             test_error!(UnknownToken, TokenType::Unknown, 102, "^".to_string()),
             test_error!(UnexpectedOperand, TokenType::Number, 103, "2".to_string()),
         ];
