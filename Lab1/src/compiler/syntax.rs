@@ -29,6 +29,7 @@ macro_rules! syntax_error {
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum SyntaxErrorKind {
+    EmptyParentheses,
     IncorrectVariableName,
     IncorrectFloat,
     IncorrectHexLiteral,
@@ -48,6 +49,7 @@ pub enum SyntaxErrorKind {
 impl std::fmt::Display for SyntaxError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let text = match self.kind {
+            SyntaxErrorKind::EmptyParentheses => "Empty function or grouping.",
             SyntaxErrorKind::IncorrectVariableName => "Incorrect variable name.",
             SyntaxErrorKind::IncorrectFloat => "Incorrect float.",
             SyntaxErrorKind::IncorrectHexLiteral => match &self.token.value {
@@ -350,13 +352,21 @@ impl SyntaxAnalyzer {
                 },
 
                 TokenType::RightParenthesis => {
-                    if self.parentheses_stack.pop_back().is_some() {
-                        // Correct
-                        self.status.expect_operand = false;
-                        self.status.expect_operator = true;
-                    } else {
-                        self.errors.push(syntax_error!(UnmatchedParenthesis, token));
+                    match self.parentheses_stack.pop_back().is_some() {
+                        true => {
+                            // Correct
+                            self.status.expect_operand = false;
+                            self.status.expect_operator = true;
+                        },
+                        false => self.errors.push(syntax_error!(UnmatchedParenthesis, token)),
                     }
+
+                    // Empty grouping/function arguments check
+                    if let Some(previous) = self.peek_previous()
+                        && matches!(previous.kind, TokenType::LeftParenthesis) {
+                        self.errors.push(syntax_error!(EmptyParentheses, token));
+                    }
+
                     self.current_index += 1;
                     continue;
                 },
@@ -428,7 +438,7 @@ impl SyntaxAnalyzer {
     }
 
     fn peek_previous(&self) -> Option<&Token> {
-        self.tokens.get(self.current_index - 1)
+        self.tokens.get(self.current_index.checked_sub(1)?)
     }
 }
 
