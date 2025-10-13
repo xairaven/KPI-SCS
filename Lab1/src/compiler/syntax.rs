@@ -322,8 +322,11 @@ impl SyntaxAnalyzer {
                 TokenType::LeftParenthesis => {
                     // LeftParenthesis can be there if we're waiting for operand (grouping)
                     // or previous token is Identifier (function call)
+                    // Number - error (processing later)
+                    // RightParenthesis - error (processing later)
                     let allow = self.status.expect_operand
                         || matches!(self.peek_previous(), Some(t) if matches!(t.kind, TokenType::Identifier))
+                        || matches!(self.peek_previous(), Some(t) if matches!(t.kind, TokenType::RightParenthesis))
                         || matches!(self.peek_previous(), Some(t) if matches!(t.kind, TokenType::Number));
                     if !allow {
                         self.errors
@@ -338,6 +341,14 @@ impl SyntaxAnalyzer {
                         // Function name cannot start with a number
                         self.errors
                             .push(syntax_error!(UnexpectedFunctionName, previous));
+                    }
+
+                    if let Some(previous) = self.peek_previous()
+                        && matches!(previous.kind, TokenType::RightParenthesis)
+                    {
+                        // Needed operation. but anyway, pushing to the stack
+                        self.errors
+                            .push(syntax_error!(UnexpectedParenthesis, token));
                     }
 
                     self.parentheses_stack.push_back(token.clone());
