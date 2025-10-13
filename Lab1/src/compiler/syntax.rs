@@ -814,16 +814,21 @@ mod tests {
         assert_eq!(errors_actual, errors_expected);
     }
 
-    //     #[test]
-    //     fn test_syntax_10() {
-    //         let code = "/a*b**c + m)*a*b + a*c - a*smn(j*k/m + m";
-    //
-    //         let errors_actual: Vec<SyntaxError> =
-    //             SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
-    //         let errors_expected: Vec<SyntaxError> = vec![];
-    //         assert_eq!(errors_actual, errors_expected);
-    //     }
-    //
+    #[test]
+    fn test_syntax_10() {
+        let code = "/a*b**c + m)*a*b + a*c - a*smn(j*k/m + m";
+
+        let errors_actual: Vec<SyntaxError> =
+            SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
+        let errors_expected: Vec<SyntaxError> = vec![
+            test_error!(UnexpectedOperator, TokenType::Slash, 0),
+            test_error!(UnexpectedOperator, TokenType::Asterisk, 5),
+            test_error!(UnmatchedParenthesis, TokenType::RightParenthesis, 11),
+            test_error!(UnmatchedParenthesis, TokenType::LeftParenthesis, 30),
+        ];
+        assert_eq!(errors_actual, errors_expected);
+    }
+
     //     #[test]
     //     fn test_syntax_11() {
     //         let code =
