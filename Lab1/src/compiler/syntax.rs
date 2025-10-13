@@ -36,6 +36,7 @@ pub enum SyntaxErrorKind {
     IncorrectFloat,
     IncorrectHexLiteral,
     IncorrectBinaryLiteral,
+    MissingArgument,
     UnexpectedFunctionName,
     UnexpectedEndOfExpression,
     UnexpectedOperand,
@@ -65,6 +66,7 @@ impl std::fmt::Display for SyntaxError {
                 None => "Incorrect binary literal.",
                 Some(value) => &format!("Incorrect binary literal '0{}'.", value),
             },
+            SyntaxErrorKind::MissingArgument => "Missing function argument.",
             SyntaxErrorKind::UnexpectedOperand => match &self.token.value {
                 None => "Unexpected operand.",
                 Some(value) => &format!("Unexpected operand '{}'.", value),
@@ -292,19 +294,30 @@ impl SyntaxAnalyzer {
                 | TokenType::Asterisk
                 | TokenType::Slash
                 | TokenType::Percent => {
-                    if self.status.expect_operand {
-                        // Not supporting unary operations
-                        self.errors.push(syntax_error!(UnexpectedOperator, token));
-                        // Waiting for operand still
-                        self.current_index += 1;
-                        continue;
+                    let minus_with_identifier = if token.kind == TokenType::Minus
+                        && let Some(next) = self.peek_next()
+                        && [
+                            TokenType::Identifier,
+                            TokenType::Number,
+                            TokenType::LeftParenthesis,
+                        ]
+                        .contains(&next.kind)
+                    {
+                        true
                     } else {
-                        // Correct binary operator
+                        false
+                    };
+
+                    if self.status.expect_operator || minus_with_identifier {
                         self.status.expect_operand = true;
                         self.status.expect_operator = false;
-                        self.current_index += 1;
-                        continue;
+                    } else {
+                        // Not supporting unary operations unless it's minus before identifier
+                        self.errors.push(syntax_error!(UnexpectedOperator, token));
+                        // Waiting for operand still
                     }
+                    self.current_index += 1;
+                    continue;
                 },
 
                 // Unary logical operations. Located where operand is expected
@@ -430,18 +443,31 @@ impl SyntaxAnalyzer {
                         self.errors.push(syntax_error!(UnexpectedComma, token));
                         self.current_index += 1;
                         continue;
-                    } else {
-                        // Inside parentheses comma need to be after operand and before new operand
-                        if self.status.expect_operand {
-                            // Empty argument
-                            self.errors.push(syntax_error!(UnexpectedComma, token));
-                        }
-                        // Expecting new operand
-                        self.status.expect_operand = true;
-                        self.status.expect_operator = false;
+                    }
+
+                    // Inside parentheses comma need to be after operand and before new operand
+                    if self.status.expect_operand {
+                        // Empty argument
+                        self.errors.push(syntax_error!(UnexpectedComma, token));
                         self.current_index += 1;
                         continue;
                     }
+
+                    // Argument is not present
+                    if let Some(next) = self.peek_next()
+                        && matches!(next.kind, TokenType::RightParenthesis)
+                    {
+                        // Empty argument
+                        self.errors.push(syntax_error!(MissingArgument, token));
+                        self.current_index += 1;
+                        continue;
+                    }
+
+                    // Expecting new operand
+                    self.status.expect_operand = true;
+                    self.status.expect_operator = false;
+                    self.current_index += 1;
+                    continue;
                 },
 
                 TokenType::Unknown => {
@@ -549,7 +575,6 @@ mod tests {
         let errors_actual: Vec<SyntaxError> =
             SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
         let errors_expected: Vec<SyntaxError> = vec![
-            test_error!(UnexpectedOperator, TokenType::Minus, 0),
             test_error!(UnexpectedOperator, TokenType::Plus, 4),
             test_error!(
                 IncorrectVariableName,
@@ -562,6 +587,7 @@ mod tests {
             test_error!(UnexpectedOperator, TokenType::Asterisk, 32),
             test_error!(UnexpectedDot, TokenType::Dot, 37),
             test_error!(UnexpectedOperand, TokenType::Number, 38, "2".to_string()),
+            test_error!(MissingArgument, TokenType::Comma, 40),
             test_error!(
                 UnexpectedFunctionName,
                 TokenType::Number,
@@ -760,27 +786,34 @@ mod tests {
             SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
         let errors_expected: Vec<SyntaxError> = vec![
             test_error!(UnmatchedParenthesis, TokenType::RightParenthesis, 0),
-            test_error!(UnexpectedOperator, TokenType::Minus, 6),
             test_error!(UnexpectedParenthesis, TokenType::LeftParenthesis, 12),
             test_error!(EmptyParentheses, TokenType::RightParenthesis, 20),
             test_error!(UnmatchedParenthesis, TokenType::RightParenthesis, 21),
             test_error!(UnmatchedParenthesis, TokenType::LeftParenthesis, 25),
-            test_error!(UnexpectedOperator, TokenType::Minus, 26),
             test_error!(UnmatchedParenthesis, TokenType::LeftParenthesis, 28),
         ];
         assert_eq!(errors_actual, errors_expected);
     }
 
-    //     #[test]
-    //     fn test_syntax_09() {
-    //         let code = "2(t) - f2(t) + g()/h(2, )*func(-t/q, f(4-t), - (x+2)*(y-2))";
-    //
-    //         let errors_actual: Vec<SyntaxError> =
-    //             SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
-    //         let errors_expected: Vec<SyntaxError> = vec![];
-    //         assert_eq!(errors_actual, errors_expected);
-    //     }
-    //
+    #[test]
+    fn test_syntax_09() {
+        let code = "2(t) - f2(t) + g()/h(2, )*func(-t/q, f(4-t), - (x+2)*(y-2))";
+
+        let errors_actual: Vec<SyntaxError> =
+            SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
+        let errors_expected: Vec<SyntaxError> = vec![
+            test_error!(
+                UnexpectedFunctionName,
+                TokenType::Number,
+                0,
+                "2".to_string()
+            ),
+            test_error!(EmptyParentheses, TokenType::RightParenthesis, 17),
+            test_error!(MissingArgument, TokenType::Comma, 22),
+        ];
+        assert_eq!(errors_actual, errors_expected);
+    }
+
     //     #[test]
     //     fn test_syntax_10() {
     //         let code = "/a*b**c + m)*a*b + a*c - a*smn(j*k/m + m";
