@@ -9,6 +9,7 @@ pub struct SyntaxAnalyzer {
     errors: Vec<SyntaxError>,
     current_index: usize,
     parentheses_stack: VecDeque<Token>,
+    brackets_stack: VecDeque<Token>,
     status: Status,
 }
 
@@ -30,6 +31,7 @@ macro_rules! syntax_error {
 #[derive(Debug, PartialEq, Eq)]
 pub enum SyntaxErrorKind {
     EmptyParentheses,
+    EmptyBrackets,
     IncorrectVariableName,
     IncorrectFloat,
     IncorrectHexLiteral,
@@ -42,7 +44,9 @@ pub enum SyntaxErrorKind {
     UnexpectedDot,
     UnexpectedNewLine,
     UnexpectedParenthesis,
+    UnexpectedBrackets,
     UnmatchedParenthesis,
+    UnmatchedBrackets,
     UnknownToken,
 }
 
@@ -50,6 +54,7 @@ impl std::fmt::Display for SyntaxError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let text = match self.kind {
             SyntaxErrorKind::EmptyParentheses => "Empty function or grouping.",
+            SyntaxErrorKind::EmptyBrackets => "Empty array access.",
             SyntaxErrorKind::IncorrectVariableName => "Incorrect variable name.",
             SyntaxErrorKind::IncorrectFloat => "Incorrect float.",
             SyntaxErrorKind::IncorrectHexLiteral => match &self.token.value {
@@ -72,8 +77,10 @@ impl std::fmt::Display for SyntaxError {
             SyntaxErrorKind::UnexpectedComma => "Unexpected comma.",
             SyntaxErrorKind::UnexpectedDot => "Unexpected dot.",
             SyntaxErrorKind::UnexpectedParenthesis => "Unexpected parenthesis.",
+            SyntaxErrorKind::UnexpectedBrackets => "Unexpected brackets.",
             SyntaxErrorKind::UnexpectedNewLine => "Unexpected newline.",
             SyntaxErrorKind::UnmatchedParenthesis => "Unmatched parenthesis.",
+            SyntaxErrorKind::UnmatchedBrackets => "Unmatched brackets.",
             SyntaxErrorKind::UnknownToken => "Unknown token.",
             SyntaxErrorKind::UnexpectedEndOfExpression => "Unexpected end of expression.",
         };
@@ -108,6 +115,7 @@ impl SyntaxAnalyzer {
             errors: Vec::new(),
             current_index: 0,
             parentheses_stack: VecDeque::new(),
+            brackets_stack: VecDeque::new(),
             status: Status::default(),
         }
     }
@@ -312,6 +320,47 @@ impl SyntaxAnalyzer {
                     }
                 },
 
+                TokenType::LeftBracket => {
+                    // LeftBracket can be there if previous token is Identifier (array access)
+                    // or that's array with more than one dimension (e.g. arr[2][3])
+                    let allow = matches!(self.peek_previous(), Some(t) if matches!(t.kind, TokenType::Identifier))
+                        || matches!(self.peek_previous(), Some(t) if matches!(t.kind, TokenType::RightBracket));
+                    if !allow {
+                        self.errors.push(syntax_error!(UnexpectedBrackets, token));
+                        self.current_index += 1;
+                        continue;
+                    }
+
+                    self.brackets_stack.push_back(token.clone());
+                    self.status.expect_operand = true;
+                    self.status.expect_operator = false;
+                    self.current_index += 1;
+                    continue;
+                },
+
+                TokenType::RightBracket => {
+                    match self.brackets_stack.pop_back().is_some() {
+                        true => {
+                            // Correct
+                            self.status.expect_operand = false;
+                            self.status.expect_operator = true;
+                        },
+                        false => {
+                            self.errors.push(syntax_error!(UnmatchedBrackets, token))
+                        },
+                    }
+
+                    // Empty array access check
+                    if let Some(previous) = self.peek_previous()
+                        && matches!(previous.kind, TokenType::LeftBracket)
+                    {
+                        self.errors.push(syntax_error!(EmptyBrackets, token));
+                    }
+
+                    self.current_index += 1;
+                    continue;
+                },
+
                 TokenType::LeftParenthesis => {
                     // LeftParenthesis can be there if we're waiting for operand (grouping)
                     // or previous token is Identifier (function call)
@@ -358,12 +407,15 @@ impl SyntaxAnalyzer {
                             self.status.expect_operand = false;
                             self.status.expect_operator = true;
                         },
-                        false => self.errors.push(syntax_error!(UnmatchedParenthesis, token)),
+                        false => {
+                            self.errors.push(syntax_error!(UnmatchedParenthesis, token))
+                        },
                     }
 
                     // Empty grouping/function arguments check
                     if let Some(previous) = self.peek_previous()
-                        && matches!(previous.kind, TokenType::LeftParenthesis) {
+                        && matches!(previous.kind, TokenType::LeftParenthesis)
+                    {
                         self.errors.push(syntax_error!(EmptyParentheses, token));
                     }
 
@@ -700,16 +752,25 @@ mod tests {
         assert_eq!(errors_actual, errors_expected);
     }
 
-    //     #[test]
-    //     fn test_syntax_08() {
-    //         let code = ")a+b( -(g+h)(g-k))*()) + (-b(t-2*x*(5) + A[7][2-x]";
-    //
-    //         let errors_actual: Vec<SyntaxError> =
-    //             SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
-    //         let errors_expected: Vec<SyntaxError> = vec![];
-    //         assert_eq!(errors_actual, errors_expected);
-    //     }
-    //
+    #[test]
+    fn test_syntax_08() {
+        let code = ")a+b( -(g+h)(g-k))*()) + (-b(t-2*x*(5) + A[7][2-x]";
+
+        let errors_actual: Vec<SyntaxError> =
+            SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
+        let errors_expected: Vec<SyntaxError> = vec![
+            test_error!(UnmatchedParenthesis, TokenType::RightParenthesis, 0),
+            test_error!(UnexpectedOperator, TokenType::Minus, 6),
+            test_error!(UnexpectedParenthesis, TokenType::LeftParenthesis, 12),
+            test_error!(EmptyParentheses, TokenType::RightParenthesis, 20),
+            test_error!(UnmatchedParenthesis, TokenType::RightParenthesis, 21),
+            test_error!(UnmatchedParenthesis, TokenType::LeftParenthesis, 25),
+            test_error!(UnexpectedOperator, TokenType::Minus, 26),
+            test_error!(UnmatchedParenthesis, TokenType::LeftParenthesis, 28),
+        ];
+        assert_eq!(errors_actual, errors_expected);
+    }
+
     //     #[test]
     //     fn test_syntax_09() {
     //         let code = "2(t) - f2(t) + g()/h(2, )*func(-t/q, f(4-t), - (x+2)*(y-2))";
