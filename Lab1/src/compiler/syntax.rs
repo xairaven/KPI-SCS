@@ -39,6 +39,7 @@ pub enum SyntaxErrorKind {
     UnexpectedOperator,
     UnexpectedComma,
     UnexpectedDot,
+    UnexpectedNewLine,
     UnexpectedParenthesis,
     UnmatchedParenthesis,
     UnknownToken,
@@ -69,6 +70,7 @@ impl std::fmt::Display for SyntaxError {
             SyntaxErrorKind::UnexpectedComma => "Unexpected comma.",
             SyntaxErrorKind::UnexpectedDot => "Unexpected dot.",
             SyntaxErrorKind::UnexpectedParenthesis => "Unexpected parenthesis.",
+            SyntaxErrorKind::UnexpectedNewLine => "Unexpected newline.",
             SyntaxErrorKind::UnmatchedParenthesis => "Unmatched parenthesis.",
             SyntaxErrorKind::UnknownToken => "Unknown token.",
             SyntaxErrorKind::UnexpectedEndOfExpression => "Unexpected end of expression.",
@@ -117,17 +119,6 @@ impl SyntaxAnalyzer {
 
         while self.current_index < self.tokens.len() {
             let token = &self.tokens[self.current_index];
-
-            // If we're not in the string, we can skip spaces, tabs, and newlines
-            match &token.kind {
-                TokenType::Space | TokenType::Tab | TokenType::NewLine
-                    if !self.status.in_string =>
-                {
-                    self.current_index += 1;
-                    continue;
-                },
-                _ => {},
-            }
 
             match &token.kind {
                 TokenType::QuotationMark => {
@@ -397,7 +388,14 @@ impl SyntaxAnalyzer {
                     self.current_index += 1;
                     continue;
                 },
-                TokenType::Space | TokenType::Tab | TokenType::NewLine => continue,
+                TokenType::NewLine => {
+                    // Unexpected newline is error, if we're not in string
+                    if !self.status.in_string {
+                        self.errors.push(syntax_error!(UnexpectedNewLine, token));
+                    }
+                    self.current_index += 1;
+                    continue;
+                },
             }
         }
 
@@ -593,6 +591,7 @@ mod tests {
             test_error!(UnexpectedOperand, TokenType::Number, 32, "4".to_string()),
             test_error!(UnexpectedOperator, TokenType::ExclamationMark, 39),
             test_error!(UnexpectedOperand, TokenType::Number, 40, "5".to_string()),
+            test_error!(UnexpectedNewLine, TokenType::NewLine, 41),
             test_error!(
                 IncorrectVariableName,
                 TokenType::Number,
