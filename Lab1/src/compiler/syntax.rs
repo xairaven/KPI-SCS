@@ -12,6 +12,7 @@ pub struct SyntaxAnalyzer {
 
     brackets_stack: VecDeque<Token>,
     parentheses_stack: VecDeque<Token>,
+    quotation_marks_stack: VecDeque<Token>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -50,6 +51,7 @@ pub enum SyntaxErrorKind {
     UnknownToken,
     UnmatchedBrackets,
     UnmatchedParenthesis,
+    UnmatchedQuotationMark,
 }
 
 impl std::fmt::Display for SyntaxError {
@@ -86,6 +88,7 @@ impl std::fmt::Display for SyntaxError {
             SyntaxErrorKind::UnknownToken => "Unknown token.",
             SyntaxErrorKind::UnmatchedBrackets => "Unmatched brackets.",
             SyntaxErrorKind::UnmatchedParenthesis => "Unmatched parenthesis.",
+            SyntaxErrorKind::UnmatchedQuotationMark => "Unmatched quotation mark.",
         };
 
         write!(f, "{}", text)
@@ -121,6 +124,7 @@ impl SyntaxAnalyzer {
 
             brackets_stack: VecDeque::new(),
             parentheses_stack: VecDeque::new(),
+            quotation_marks_stack: VecDeque::new(),
         }
     }
 
@@ -130,6 +134,25 @@ impl SyntaxAnalyzer {
             expect_operator: false,
             in_string: false,
         };
+
+        // Deleting redundant spaces & tabs
+        {
+            let mut delete_spaces = Vec::new();
+            let mut in_string = false;
+            for (i, token) in self.tokens.iter().enumerate() {
+                if token.kind == TokenType::QuotationMark {
+                    in_string = !in_string;
+                }
+                if !in_string
+                    && (token.kind == TokenType::Space || token.kind == TokenType::Tab)
+                {
+                    delete_spaces.push(i);
+                }
+            }
+            for index in delete_spaces.iter().rev() {
+                self.tokens.remove(*index);
+            }
+        }
 
         while self.current_index < self.tokens.len() {
             let token = &self.tokens[self.current_index];
@@ -151,6 +174,12 @@ impl SyntaxAnalyzer {
                         self.status.in_string = false;
                         // String literal is operand
                         self.status.expect_operator = true;
+                    }
+
+                    if self.quotation_marks_stack.is_empty() {
+                        self.quotation_marks_stack.push_back(token.clone());
+                    } else {
+                        self.quotation_marks_stack.pop_back();
                     }
 
                     self.status.expect_operand = false;
@@ -472,6 +501,11 @@ impl SyntaxAnalyzer {
                     self.current_index += 1;
                     continue;
                 },
+                TokenType::Space | TokenType::Tab => {
+                    // Shouldn't be here, but skipping just in case
+                    self.current_index += 1;
+                    continue;
+                },
             }
         }
 
@@ -487,6 +521,14 @@ impl SyntaxAnalyzer {
         {
             self.errors
                 .push(syntax_error!(UnexpectedEndOfExpression, last));
+        }
+
+        // Unclosed string
+        if let Some(token) = self.quotation_marks_stack.pop_back()
+            && self.status.in_string
+        {
+            self.errors
+                .push(syntax_error!(UnmatchedQuotationMark, token));
         }
 
         self.errors
