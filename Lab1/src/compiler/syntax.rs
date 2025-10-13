@@ -165,6 +165,19 @@ impl SyntaxAnalyzer {
                     continue;
                 },
 
+                TokenType::ExclamationMark => {
+                    // Used only like identifier part
+                    if self.status.expect_operand {
+                        self.status.expect_operand = true;
+                        self.status.expect_operator = false;
+                    } else {
+                        self.errors.push(syntax_error!(UnexpectedOperator, token));
+                        // Continuing, but considering that operator was read.
+                    }
+                    self.current_index += 1;
+                    continue;
+                },
+
                 TokenType::Identifier => {
                     // Identifier - operand
                     if !self.status.expect_operand {
@@ -288,13 +301,16 @@ impl SyntaxAnalyzer {
                     continue;
                 },
 
-                // Binary mathematical operations
+                // Mathematical and logical operations
                 TokenType::Plus
                 | TokenType::Minus
                 | TokenType::Asterisk
                 | TokenType::Slash
-                | TokenType::Percent => {
-                    let minus_with_identifier = if token.kind == TokenType::Minus
+                | TokenType::Percent
+                | TokenType::Ampersand
+                | TokenType::Pipe => {
+                    // Unary operations
+                    let unary = if [TokenType::Minus].contains(&token.kind)
                         && let Some(next) = self.peek_next()
                         && [
                             TokenType::Identifier,
@@ -308,29 +324,15 @@ impl SyntaxAnalyzer {
                         false
                     };
 
-                    if self.status.expect_operator || minus_with_identifier {
+                    if self.status.expect_operator || unary {
                         self.status.expect_operand = true;
                         self.status.expect_operator = false;
                     } else {
-                        // Not supporting unary operations unless it's minus before identifier
                         self.errors.push(syntax_error!(UnexpectedOperator, token));
                         // Waiting for operand still
                     }
                     self.current_index += 1;
                     continue;
-                },
-
-                // Unary logical operations. Located where operand is expected
-                TokenType::ExclamationMark | TokenType::Ampersand | TokenType::Pipe => {
-                    if !self.status.expect_operand {
-                        self.errors.push(syntax_error!(UnexpectedOperator, token));
-                        self.current_index += 1;
-                        continue;
-                    } else {
-                        // Correct! But still expecting operand
-                        self.current_index += 1;
-                        continue;
-                    }
                 },
 
                 TokenType::LeftBracket => {
@@ -647,22 +649,6 @@ mod tests {
                 10,
                 "h".to_string()
             ),
-            test_error!(UnexpectedOperator, TokenType::Ampersand, 22),
-            test_error!(UnexpectedParenthesis, TokenType::LeftParenthesis, 23),
-            test_error!(
-                UnexpectedOperand,
-                TokenType::Identifier,
-                24,
-                "z".to_string()
-            ),
-            test_error!(UnexpectedOperator, TokenType::Pipe, 25),
-            test_error!(
-                UnexpectedOperand,
-                TokenType::Identifier,
-                26,
-                "t".to_string()
-            ),
-            test_error!(UnmatchedParenthesis, TokenType::RightParenthesis, 27),
         ];
         assert_eq!(errors_actual, errors_expected);
     }
@@ -829,17 +815,50 @@ mod tests {
         assert_eq!(errors_actual, errors_expected);
     }
 
-    //     #[test]
-    //     fn test_syntax_11() {
-    //         let code =
-    //             "-cos(-&t))/(*(*f)(127.0.0.1, \"/dev/null\", (t==0)?4more_errors:b^2) - .5";
-    //
-    //         let errors_actual: Vec<SyntaxError> =
-    //             SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
-    //         let errors_expected: Vec<SyntaxError> = vec![];
-    //         assert_eq!(errors_actual, errors_expected);
-    //     }
-    //
+    #[test]
+    fn test_syntax_11() {
+        let code =
+            "-cos(-&t))/(*(*f)(127.0.0.1, \"/dev/null\", (t==0)?4more_errors:b^2) - .5";
+
+        let errors_actual: Vec<SyntaxError> =
+            SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
+        let errors_expected: Vec<SyntaxError> = vec![
+            test_error!(UnexpectedOperator, TokenType::Minus, 5),
+            test_error!(UnexpectedOperator, TokenType::Ampersand, 6),
+            test_error!(UnmatchedParenthesis, TokenType::RightParenthesis, 9),
+            test_error!(UnmatchedParenthesis, TokenType::LeftParenthesis, 11),
+            test_error!(UnexpectedOperator, TokenType::Asterisk, 12),
+            test_error!(UnexpectedOperator, TokenType::Asterisk, 14),
+            test_error!(UnexpectedParenthesis, TokenType::LeftParenthesis, 17),
+            test_error!(UnexpectedDot, TokenType::Dot, 23),
+            test_error!(UnexpectedOperand, TokenType::Number, 24, "0".to_string()),
+            test_error!(UnexpectedDot, TokenType::Dot, 25),
+            test_error!(UnexpectedOperand, TokenType::Number, 26, "1".to_string()),
+            test_error!(UnknownToken, TokenType::Unknown, 44, "=".to_string()),
+            test_error!(UnknownToken, TokenType::Unknown, 45, "=".to_string()),
+            test_error!(UnexpectedOperand, TokenType::Number, 46, "0".to_string()),
+            test_error!(UnknownToken, TokenType::Unknown, 48, "?".to_string()),
+            test_error!(UnexpectedOperand, TokenType::Number, 49, "4".to_string()),
+            test_error!(
+                UnexpectedOperand,
+                TokenType::Identifier,
+                50..61,
+                "more_errors".to_string()
+            ),
+            test_error!(UnknownToken, TokenType::Unknown, 61, ":".to_string()),
+            test_error!(
+                UnexpectedOperand,
+                TokenType::Identifier,
+                62,
+                "b".to_string()
+            ),
+            test_error!(UnknownToken, TokenType::Unknown, 63, "^".to_string()),
+            test_error!(UnexpectedOperand, TokenType::Number, 64, "2".to_string()),
+            test_error!(UnexpectedDot, TokenType::Dot, 69),
+        ];
+        assert_eq!(errors_actual, errors_expected);
+    }
+
     //     #[test]
     //     fn test_syntax_12() {
     //         let code = "//(*0)- an*0p(a+b)-1.000.5//6(*f(-b, 1.8-0*(2-6) %1 + (++a)/(6x^2+4x-1) + d/dt*(smn(at+q)/(4cos(at)-ht^2)";
