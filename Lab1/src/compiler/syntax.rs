@@ -403,8 +403,6 @@ impl SyntaxAnalyzer {
                     if !allow {
                         self.errors
                             .push(syntax_error!(UnexpectedParenthesis, token));
-                        self.current_index += 1;
-                        continue;
                     }
 
                     if let Some(previous) = self.peek_previous()
@@ -431,11 +429,25 @@ impl SyntaxAnalyzer {
                 },
 
                 TokenType::RightParenthesis => {
-                    // Empty grouping/function arguments check
-                    if let Some(previous) = self.peek_previous()
-                        && matches!(previous.kind, TokenType::LeftParenthesis)
+                    // Empty grouping check. Also, empty function is not an error.
+                    if let Some(possible_left_parentheses) = self.peek_previous()
+                        && matches!(
+                            possible_left_parentheses.kind,
+                            TokenType::LeftParenthesis
+                        )
                     {
-                        self.errors.push(syntax_error!(EmptyParentheses, token));
+                        // But, non-function
+                        if let Some(possible_function_name) = self.peek_previous_by(2)
+                            && matches!(
+                                possible_function_name.kind,
+                                TokenType::Identifier
+                            )
+                        {
+                            self.status.expect_operand = false;
+                            self.status.expect_operator = true;
+                        } else {
+                            self.errors.push(syntax_error!(EmptyParentheses, token));
+                        }
                     } else if self.status.expect_operand {
                         self.errors
                             .push(syntax_error!(UnexpectedParenthesis, token));
@@ -461,6 +473,8 @@ impl SyntaxAnalyzer {
                     if self.parentheses_stack.is_empty() {
                         // Surely an error
                         self.errors.push(syntax_error!(UnexpectedComma, token));
+                        self.status.expect_operand = true;
+                        self.status.expect_operator = false;
                         self.current_index += 1;
                         continue;
                     }
@@ -550,6 +564,10 @@ impl SyntaxAnalyzer {
 
     fn peek_previous(&self) -> Option<&Token> {
         self.tokens.get(self.current_index.checked_sub(1)?)
+    }
+
+    fn peek_previous_by(&self, by: usize) -> Option<&Token> {
+        self.tokens.get(self.current_index.checked_sub(by)?)
     }
 }
 
@@ -797,7 +815,6 @@ mod tests {
             SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
         let errors_expected: Vec<SyntaxError> = vec![
             test_error!(InvalidFunctionName, TokenType::Number, 0, "2".to_string()),
-            test_error!(EmptyParentheses, TokenType::RightParenthesis, 17),
             test_error!(MissingArgument, TokenType::Comma, 22),
         ];
         assert_eq!(errors_actual, errors_expected);
@@ -910,7 +927,6 @@ mod tests {
                 12..15,
                 "exp".to_string()
             ),
-            test_error!(EmptyParentheses, TokenType::RightParenthesis, 16),
             test_error!(UnexpectedDot, TokenType::Dot, 27),
             test_error!(
                 UnexpectedOperand,
@@ -948,7 +964,6 @@ mod tests {
             test_error!(UnexpectedParenthesis, TokenType::RightParenthesis, 28),
             test_error!(UnexpectedParenthesis, TokenType::LeftParenthesis, 29),
             test_error!(UnexpectedParenthesis, TokenType::RightParenthesis, 36),
-            test_error!(EmptyParentheses, TokenType::RightParenthesis, 40),
             test_error!(UnexpectedOperator, TokenType::Plus, 49),
             test_error!(UnexpectedParenthesis, TokenType::RightParenthesis, 50),
             test_error!(UnexpectedOperator, TokenType::Plus, 55),
@@ -1035,14 +1050,46 @@ mod tests {
         assert_eq!(errors_actual, errors_expected);
     }
 
-    //     #[test]
-    //     fn test_syntax_17() {
-    //         let code =
-    //             "*101*1#(t-q)(t+q)//dt - (int*)f(8t, -(k/h)A[i+6.]), exp(), ))(t-k*8.00.1/.0";
-    //
-    //         let errors_actual: Vec<SyntaxError> =
-    //             SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
-    //         let errors_expected: Vec<SyntaxError> = vec![];
-    //         assert_eq!(errors_actual, errors_expected);
-    //     }
+    #[test]
+    fn test_syntax_17() {
+        let code =
+            "*101*1#(t-q)(t+q)//dt - (int*)f(8t, -(k/h)A[i+6.]), exp(), ))(t-k*8.00.1/.0";
+
+        let errors_actual: Vec<SyntaxError> =
+            SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
+        let errors_expected: Vec<SyntaxError> = vec![
+            test_error!(UnexpectedOperator, TokenType::Asterisk, 0),
+            test_error!(UnknownToken, TokenType::Unknown, 6, "#".to_string()),
+            test_error!(UnexpectedParenthesis, TokenType::LeftParenthesis, 7),
+            test_error!(UnexpectedParenthesis, TokenType::LeftParenthesis, 12),
+            test_error!(UnexpectedOperator, TokenType::Slash, 18),
+            test_error!(UnexpectedParenthesis, TokenType::RightParenthesis, 29),
+            test_error!(
+                UnexpectedOperand,
+                TokenType::Identifier,
+                30,
+                "f".to_string()
+            ),
+            test_error!(InvalidVariableName, TokenType::Number, 32, "8".to_string()),
+            test_error!(
+                UnexpectedOperand,
+                TokenType::Identifier,
+                42,
+                "A".to_string()
+            ),
+            test_error!(InvalidFloat, TokenType::Dot, 47),
+            test_error!(UnexpectedComma, TokenType::Comma, 50),
+            test_error!(UnexpectedComma, TokenType::Comma, 57),
+            test_error!(UnexpectedParenthesis, TokenType::RightParenthesis, 59),
+            test_error!(UnmatchedParenthesis, TokenType::RightParenthesis, 59),
+            test_error!(UnexpectedParenthesis, TokenType::RightParenthesis, 60),
+            test_error!(UnmatchedParenthesis, TokenType::RightParenthesis, 60),
+            test_error!(UnexpectedParenthesis, TokenType::LeftParenthesis, 61),
+            test_error!(UnmatchedParenthesis, TokenType::LeftParenthesis, 61),
+            test_error!(UnexpectedDot, TokenType::Dot, 70),
+            test_error!(UnexpectedOperand, TokenType::Number, 71, "1".to_string()),
+            test_error!(UnexpectedDot, TokenType::Dot, 73),
+        ];
+        assert_eq!(errors_actual, errors_expected);
+    }
 }
