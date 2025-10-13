@@ -1,6 +1,6 @@
 cargo build --package Lab1
 
-TESTS_AMOUNT=17
+TESTS_AMOUNT=18
 for i in {1..$TESTS_AMOUNT}
 do
     echo "Test $i"

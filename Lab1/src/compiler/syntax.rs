@@ -1092,4 +1092,24 @@ mod tests {
         ];
         assert_eq!(errors_actual, errors_expected);
     }
+
+    #[test]
+    fn test_syntax_18() {
+        let code = "-(-5x((int*)exp())/t - \"sdds + 4.5+3";
+        let errors_actual: Vec<SyntaxError> =
+            SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
+        let errors_expected: Vec<SyntaxError> = vec![
+            test_error!(UnmatchedParenthesis, TokenType::LeftParenthesis, 1),
+            test_error!(InvalidFunctionName, TokenType::Number, 3, "5".to_string()),
+            test_error!(UnexpectedParenthesis, TokenType::RightParenthesis, 11),
+            test_error!(
+                UnexpectedOperand,
+                TokenType::Identifier,
+                12..15,
+                "exp".to_string()
+            ),
+            test_error!(UnmatchedQuotationMark, TokenType::QuotationMark, 23),
+        ];
+        assert_eq!(errors_actual, errors_expected);
+    }
 }
