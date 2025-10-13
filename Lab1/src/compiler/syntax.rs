@@ -1000,16 +1000,41 @@ mod tests {
         assert_eq!(errors_actual, errors_expected);
     }
 
-    //     #[test]
-    //     fn test_syntax_16() {
-    //         let code = "/.1(2x^2-5x+7)-(-i)+ (j++)/0 - )(*f)(2, 7-x, )/q + send(-(2x+7)/A[j, i], 127.0.0.1 ) + )/";
-    //
-    //         let errors_actual: Vec<SyntaxError> =
-    //             SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
-    //         let errors_expected: Vec<SyntaxError> = vec![];
-    //         assert_eq!(errors_actual, errors_expected);
-    //     }
-    //
+    #[test]
+    fn test_syntax_16() {
+        let code = "/.1(2x^2-5x+7)-(-i)+ (j++)/0 - )(*f)(2, 7-x, )/q + send(-(2x+7)/A[j, i], 127.0.0.1 ) + )/";
+
+        let errors_actual: Vec<SyntaxError> =
+            SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
+        let errors_expected: Vec<SyntaxError> = vec![
+            test_error!(UnexpectedOperator, TokenType::Slash, 0),
+            test_error!(UnexpectedDot, TokenType::Dot, 1),
+            test_error!(InvalidFunctionName, TokenType::Number, 2, "1".to_string()),
+            test_error!(InvalidVariableName, TokenType::Number, 4, "2".to_string()),
+            test_error!(UnknownToken, TokenType::Unknown, 6, "^".to_string()),
+            test_error!(UnexpectedOperand, TokenType::Number, 7, "2".to_string()),
+            test_error!(InvalidVariableName, TokenType::Number, 9, "5".to_string()),
+            test_error!(UnexpectedOperator, TokenType::Plus, 24),
+            test_error!(UnexpectedParenthesis, TokenType::RightParenthesis, 25),
+            test_error!(UnexpectedParenthesis, TokenType::RightParenthesis, 31),
+            test_error!(UnmatchedParenthesis, TokenType::RightParenthesis, 31),
+            test_error!(UnexpectedParenthesis, TokenType::LeftParenthesis, 32),
+            test_error!(UnexpectedOperator, TokenType::Asterisk, 33),
+            test_error!(UnexpectedParenthesis, TokenType::LeftParenthesis, 36),
+            test_error!(MissingArgument, TokenType::Comma, 43),
+            test_error!(InvalidVariableName, TokenType::Number, 58, "2".to_string()),
+            test_error!(UnexpectedDot, TokenType::Dot, 78),
+            test_error!(UnexpectedOperand, TokenType::Number, 79, "0".to_string()),
+            test_error!(UnexpectedDot, TokenType::Dot, 80),
+            test_error!(UnexpectedOperand, TokenType::Number, 81, "1".to_string()),
+            test_error!(UnexpectedParenthesis, TokenType::RightParenthesis, 87),
+            test_error!(UnmatchedParenthesis, TokenType::RightParenthesis, 87),
+            test_error!(UnexpectedOperator, TokenType::Slash, 88),
+            test_error!(UnexpectedEndOfExpression, TokenType::Slash, 88),
+        ];
+        assert_eq!(errors_actual, errors_expected);
+    }
+
     //     #[test]
     //     fn test_syntax_17() {
     //         let code =
