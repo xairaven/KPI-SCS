@@ -970,16 +970,36 @@ mod tests {
         assert_eq!(errors_actual, errors_expected);
     }
 
-    //     #[test]
-    //     fn test_syntax_15() {
-    //         let code = "**f(*k, -p+1, ))2.1.1 + 1.8q((-5x ++ i)";
-    //
-    //         let errors_actual: Vec<SyntaxError> =
-    //             SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
-    //         let errors_expected: Vec<SyntaxError> = vec![];
-    //         assert_eq!(errors_actual, errors_expected);
-    //     }
-    //
+    #[test]
+    fn test_syntax_15() {
+        let code = "**f(*k, -p+1, ))2.1.1 + 1.8q((-5x ++ i)";
+
+        let errors_actual: Vec<SyntaxError> =
+            SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
+        let errors_expected: Vec<SyntaxError> = vec![
+            test_error!(UnexpectedOperator, TokenType::Asterisk, 0),
+            test_error!(UnexpectedOperator, TokenType::Asterisk, 1),
+            test_error!(UnexpectedOperator, TokenType::Asterisk, 4),
+            test_error!(MissingArgument, TokenType::Comma, 12),
+            test_error!(UnmatchedParenthesis, TokenType::RightParenthesis, 15),
+            test_error!(UnexpectedOperand, TokenType::Number, 16, "2".to_string()),
+            test_error!(UnexpectedDot, TokenType::Dot, 17),
+            test_error!(UnexpectedOperand, TokenType::Number, 18, "1".to_string()),
+            test_error!(UnexpectedDot, TokenType::Dot, 19),
+            test_error!(UnexpectedOperand, TokenType::Number, 20, "1".to_string()),
+            test_error!(
+                UnexpectedOperand,
+                TokenType::Identifier,
+                27,
+                "q".to_string()
+            ),
+            test_error!(UnmatchedParenthesis, TokenType::LeftParenthesis, 28),
+            test_error!(InvalidVariableName, TokenType::Number, 31, "5".to_string()),
+            test_error!(UnexpectedOperator, TokenType::Plus, 35),
+        ];
+        assert_eq!(errors_actual, errors_expected);
+    }
+
     //     #[test]
     //     fn test_syntax_16() {
     //         let code = "/.1(2x^2-5x+7)-(-i)+ (j++)/0 - )(*f)(2, 7-x, )/q + send(-(2x+7)/A[j, i], 127.0.0.1 ) + )/";
