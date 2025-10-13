@@ -278,10 +278,20 @@ impl SyntaxAnalyzer {
                     if let Some(next) = self.peek_next()
                         && next.kind == TokenType::Identifier
                     {
-                        // If next token is identifier, then it's bad variable name
-                        self.errors
-                            .push(syntax_error!(IncorrectVariableName, token));
-                        // Skipping bad variable name
+                        // But if second next identifier is left parentheses - it's function name
+                        if let Some(second) = self.peek_next_by(2)
+                            && second.kind == TokenType::LeftParenthesis
+                        {
+                            // Function name cannot start with a number
+                            self.errors
+                                .push(syntax_error!(UnexpectedFunctionName, token));
+                        } else {
+                            // If next token is identifier, then it's bad variable name
+                            self.errors
+                                .push(syntax_error!(IncorrectVariableName, token));
+                        }
+
+                        // Skipping invalid identifier
                         self.current_index += 2;
                         self.status.expect_operand = false;
                         self.status.expect_operator = true;
@@ -859,16 +869,63 @@ mod tests {
         assert_eq!(errors_actual, errors_expected);
     }
 
-    //     #[test]
-    //     fn test_syntax_12() {
-    //         let code = "//(*0)- an*0p(a+b)-1.000.5//6(*f(-b, 1.8-0*(2-6) %1 + (++a)/(6x^2+4x-1) + d/dt*(smn(at+q)/(4cos(at)-ht^2)";
-    //
-    //         let errors_actual: Vec<SyntaxError> =
-    //             SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
-    //         let errors_expected: Vec<SyntaxError> = vec![];
-    //         assert_eq!(errors_actual, errors_expected);
-    //     }
-    //
+    #[test]
+    fn test_syntax_12() {
+        let code = "//(*0)- an*0p(a+b)-1.000.5//6(*f(-b, 1.8-0*(2-6) %1 + (++a)/(6x^2+4x-1) + d/dt*(smn(at+q)/(4cos(at)-ht^2)";
+
+        let errors_actual: Vec<SyntaxError> =
+            SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
+        let errors_expected: Vec<SyntaxError> = vec![
+            test_error!(UnexpectedOperator, TokenType::Slash, 0),
+            test_error!(UnexpectedOperator, TokenType::Slash, 1),
+            test_error!(UnexpectedOperator, TokenType::Asterisk, 3),
+            test_error!(
+                UnexpectedFunctionName,
+                TokenType::Number,
+                11,
+                "0".to_string()
+            ),
+            test_error!(UnexpectedDot, TokenType::Dot, 24),
+            test_error!(UnexpectedOperand, TokenType::Number, 25, "5".to_string()),
+            test_error!(UnexpectedOperator, TokenType::Slash, 27),
+            test_error!(
+                UnexpectedFunctionName,
+                TokenType::Number,
+                28,
+                "6".to_string()
+            ),
+            test_error!(UnmatchedParenthesis, TokenType::LeftParenthesis, 29),
+            test_error!(UnexpectedOperator, TokenType::Asterisk, 30),
+            test_error!(UnmatchedParenthesis, TokenType::LeftParenthesis, 32),
+            test_error!(UnexpectedOperator, TokenType::Plus, 55),
+            test_error!(UnexpectedOperator, TokenType::Plus, 56),
+            test_error!(
+                IncorrectVariableName,
+                TokenType::Number,
+                61,
+                "6".to_string()
+            ),
+            test_error!(UnknownToken, TokenType::Unknown, 63, "^".to_string()),
+            test_error!(UnexpectedOperand, TokenType::Number, 64, "2".to_string()),
+            test_error!(
+                IncorrectVariableName,
+                TokenType::Number,
+                66,
+                "4".to_string()
+            ),
+            test_error!(UnmatchedParenthesis, TokenType::LeftParenthesis, 79),
+            test_error!(
+                UnexpectedFunctionName,
+                TokenType::Number,
+                91,
+                "4".to_string()
+            ),
+            test_error!(UnknownToken, TokenType::Unknown, 102, "^".to_string()),
+            test_error!(UnexpectedOperand, TokenType::Number, 103, "2".to_string()),
+        ];
+        assert_eq!(errors_actual, errors_expected);
+    }
+
     //     #[test]
     //     fn test_syntax_13() {
     //         let code = "-(-5x((int*)exp())/t - 3.14.15k/(2x^2-5x-1)*y - A[N*(i++)+j]";
