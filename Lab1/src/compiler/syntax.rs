@@ -431,6 +431,16 @@ impl SyntaxAnalyzer {
                 },
 
                 TokenType::RightParenthesis => {
+                    // Empty grouping/function arguments check
+                    if let Some(previous) = self.peek_previous()
+                        && matches!(previous.kind, TokenType::LeftParenthesis)
+                    {
+                        self.errors.push(syntax_error!(EmptyParentheses, token));
+                    } else if self.status.expect_operand {
+                        self.errors
+                            .push(syntax_error!(UnexpectedParenthesis, token));
+                    }
+
                     match self.parentheses_stack.pop_back().is_some() {
                         true => {
                             // Correct
@@ -440,13 +450,6 @@ impl SyntaxAnalyzer {
                         false => {
                             self.errors.push(syntax_error!(UnmatchedParenthesis, token))
                         },
-                    }
-
-                    // Empty grouping/function arguments check
-                    if let Some(previous) = self.peek_previous()
-                        && matches!(previous.kind, TokenType::LeftParenthesis)
-                    {
-                        self.errors.push(syntax_error!(EmptyParentheses, token));
                     }
 
                     self.current_index += 1;
@@ -615,6 +618,7 @@ mod tests {
             test_error!(MissingArgument, TokenType::Comma, 40),
             test_error!(InvalidFunctionName, TokenType::Number, 44, "8".to_string()),
             test_error!(UnexpectedOperator, TokenType::Minus, 46),
+            test_error!(UnexpectedParenthesis, TokenType::RightParenthesis, 47),
             test_error!(UnexpectedOperator, TokenType::Asterisk, 49),
             test_error!(UnexpectedEndOfExpression, TokenType::Asterisk, 49),
         ];
@@ -774,6 +778,7 @@ mod tests {
         let errors_actual: Vec<SyntaxError> =
             SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
         let errors_expected: Vec<SyntaxError> = vec![
+            test_error!(UnexpectedParenthesis, TokenType::RightParenthesis, 0),
             test_error!(UnmatchedParenthesis, TokenType::RightParenthesis, 0),
             test_error!(UnexpectedParenthesis, TokenType::LeftParenthesis, 12),
             test_error!(EmptyParentheses, TokenType::RightParenthesis, 20),
@@ -889,16 +894,46 @@ mod tests {
         assert_eq!(errors_actual, errors_expected);
     }
 
-    //     #[test]
-    //     fn test_syntax_13() {
-    //         let code = "-(-5x((int*)exp())/t - 3.14.15k/(2x^2-5x-1)*y - A[N*(i++)+j]";
-    //
-    //         let errors_actual: Vec<SyntaxError> =
-    //             SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
-    //         let errors_expected: Vec<SyntaxError> = vec![];
-    //         assert_eq!(errors_actual, errors_expected);
-    //     }
-    //
+    #[test]
+    fn test_syntax_13() {
+        let code = "-(-5x((int*)exp())/t - 3.14.15k/(2x^2-5x-1)*y - A[N*(i++)+j]";
+
+        let errors_actual: Vec<SyntaxError> =
+            SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
+        let errors_expected: Vec<SyntaxError> = vec![
+            test_error!(UnmatchedParenthesis, TokenType::LeftParenthesis, 1),
+            test_error!(InvalidFunctionName, TokenType::Number, 3, "5".to_string()),
+            test_error!(UnexpectedParenthesis, TokenType::RightParenthesis, 11),
+            test_error!(
+                UnexpectedOperand,
+                TokenType::Identifier,
+                12..15,
+                "exp".to_string()
+            ),
+            test_error!(EmptyParentheses, TokenType::RightParenthesis, 16),
+            test_error!(UnexpectedDot, TokenType::Dot, 27),
+            test_error!(
+                UnexpectedOperand,
+                TokenType::Number,
+                28..30,
+                "15".to_string()
+            ),
+            test_error!(
+                UnexpectedOperand,
+                TokenType::Identifier,
+                30,
+                "k".to_string()
+            ),
+            test_error!(InvalidVariableName, TokenType::Number, 33, "2".to_string()),
+            test_error!(UnknownToken, TokenType::Unknown, 35, "^".to_string()),
+            test_error!(UnexpectedOperand, TokenType::Number, 36, "2".to_string()),
+            test_error!(InvalidVariableName, TokenType::Number, 38, "5".to_string()),
+            test_error!(UnexpectedOperator, TokenType::Plus, 55),
+            test_error!(UnexpectedParenthesis, TokenType::RightParenthesis, 56),
+        ];
+        assert_eq!(errors_actual, errors_expected);
+    }
+
     //     #[test]
     //     fn test_syntax_14() {
     //         let code = "-(-exp(3et/4.0.2, 2i-1)/L + )((void*)*f()) + ((i++) + (++i/(i--))/k//) + 6.000.500.5";
