@@ -116,9 +116,9 @@ pub struct Status {
 }
 
 impl SyntaxAnalyzer {
-    pub fn new(tokens: Vec<Token>) -> Self {
+    pub fn new(tokens: &[Token]) -> Self {
         Self {
-            tokens,
+            tokens: tokens.to_owned(),
             current_index: 0,
 
             errors: Vec::new(),
@@ -723,7 +723,7 @@ mod tests {
         let code = "-a ++ b - 2v*func((t+2 -, sin(x/*2.01.2), )/8(-)**";
 
         let errors_actual: Vec<SyntaxError> =
-            SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
+            SyntaxAnalyzer::new(&tokenizer::tokenize(code)).analyze();
         let errors_expected: Vec<SyntaxError> = vec![
             test_error!(UnexpectedOperator, TokenType::Plus, 4),
             test_error!(InvalidVariableName, TokenType::Number, 10, "2".to_string()),
@@ -747,7 +747,7 @@ mod tests {
         let code = "*a + nb -";
 
         let errors_actual: Vec<SyntaxError> =
-            SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
+            SyntaxAnalyzer::new(&tokenizer::tokenize(code)).analyze();
         let errors_expected: Vec<SyntaxError> = vec![
             test_error!(UnexpectedOperator, TokenType::Asterisk, 0),
             test_error!(UnexpectedEndOfExpression, TokenType::Minus, 8),
@@ -760,7 +760,7 @@ mod tests {
         let code = "a ++ nb /* k -+/ g";
 
         let errors_actual: Vec<SyntaxError> =
-            SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
+            SyntaxAnalyzer::new(&tokenizer::tokenize(code)).analyze();
         let errors_expected: Vec<SyntaxError> = vec![
             test_error!(UnexpectedOperator, TokenType::Plus, 3),
             test_error!(UnexpectedOperator, TokenType::Asterisk, 9),
@@ -775,7 +775,7 @@ mod tests {
         let code = "a^b$c - d#h + q%t + !b&(z|t)";
 
         let errors_actual: Vec<SyntaxError> =
-            SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
+            SyntaxAnalyzer::new(&tokenizer::tokenize(code)).analyze();
         let errors_expected: Vec<SyntaxError> = vec![
             test_error!(UnknownToken, TokenType::Unknown, 1, "^".to_string()),
             test_error!(UnexpectedOperand, TokenType::Identifier, 2, "b".to_string()),
@@ -798,7 +798,7 @@ mod tests {
     + 6var_ + $7 + ?8";
 
         let errors_actual: Vec<SyntaxError> =
-            SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
+            SyntaxAnalyzer::new(&tokenizer::tokenize(code)).analyze();
         let errors_expected: Vec<SyntaxError> = vec![
             test_error!(UnknownToken, TokenType::Unknown, 31, "#".to_string()),
             test_error!(UnexpectedOperand, TokenType::Number, 32, "4".to_string()),
@@ -817,7 +817,7 @@ mod tests {
         let code = "125 + 2nb - 0xAB * 0x0R + 0b010 * 0b20+ ABh * 0Rh + 010b*20b";
 
         let errors_actual: Vec<SyntaxError> =
-            SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
+            SyntaxAnalyzer::new(&tokenizer::tokenize(code)).analyze();
         let errors_expected: Vec<SyntaxError> = vec![
             test_error!(InvalidVariableName, TokenType::Number, 6, "2".to_string()),
             test_error!(
@@ -854,7 +854,7 @@ mod tests {
         let code = "0.71/0.72.3 + .3 + 127.0.0.1*8. + 6.07ab - 9f.89hgt";
 
         let errors_actual: Vec<SyntaxError> =
-            SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
+            SyntaxAnalyzer::new(&tokenizer::tokenize(code)).analyze();
         let errors_expected: Vec<SyntaxError> = vec![
             test_error!(UnexpectedDot, TokenType::Dot, 9),
             test_error!(UnexpectedOperand, TokenType::Number, 10, "3".to_string()),
@@ -893,7 +893,7 @@ mod tests {
         let code = ")a+b( -(g+h)(g-k))*()) + (-b(t-2*x*(5) + A[7][2-x]";
 
         let errors_actual: Vec<SyntaxError> =
-            SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
+            SyntaxAnalyzer::new(&tokenizer::tokenize(code)).analyze();
         let errors_expected: Vec<SyntaxError> = vec![
             test_error!(UnexpectedParenthesis, TokenType::RightParenthesis, 0),
             test_error!(UnmatchedParenthesis, TokenType::RightParenthesis, 0),
@@ -911,7 +911,7 @@ mod tests {
         let code = "2(t) - f2(t) + g()/h(2, )*func(-t/q, f(4-t), - (x+2)*(y-2))";
 
         let errors_actual: Vec<SyntaxError> =
-            SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
+            SyntaxAnalyzer::new(&tokenizer::tokenize(code)).analyze();
         let errors_expected: Vec<SyntaxError> = vec![
             test_error!(InvalidFunctionName, TokenType::Number, 0, "2".to_string()),
             test_error!(MissingArgument, TokenType::Comma, 22),
@@ -924,7 +924,7 @@ mod tests {
         let code = "/a*b**c + m)*a*b + a*c - a*smn(j*k/m + m";
 
         let errors_actual: Vec<SyntaxError> =
-            SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
+            SyntaxAnalyzer::new(&tokenizer::tokenize(code)).analyze();
         let errors_expected: Vec<SyntaxError> = vec![
             test_error!(UnexpectedOperator, TokenType::Slash, 0),
             test_error!(UnexpectedOperator, TokenType::Asterisk, 5),
@@ -940,7 +940,7 @@ mod tests {
             "-cos(-&t))/(*(*f)(127.0.0.1, \"/dev/null\", (t==0)?4more_errors:b^2) - .5";
 
         let errors_actual: Vec<SyntaxError> =
-            SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
+            SyntaxAnalyzer::new(&tokenizer::tokenize(code)).analyze();
         let errors_expected: Vec<SyntaxError> = vec![
             test_error!(UnexpectedOperator, TokenType::Minus, 5),
             test_error!(UnexpectedOperator, TokenType::Ampersand, 6),
@@ -983,7 +983,7 @@ mod tests {
         let code = "//(*0)- an*0p(a+b)-1.000.5//6(*f(-b, 1.8-0*(2-6) %1 + (++a)/(6x^2+4x-1) + d/dt*(smn(at+q)/(4cos(at)-ht^2)";
 
         let errors_actual: Vec<SyntaxError> =
-            SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
+            SyntaxAnalyzer::new(&tokenizer::tokenize(code)).analyze();
         let errors_expected: Vec<SyntaxError> = vec![
             test_error!(UnexpectedOperator, TokenType::Slash, 0),
             test_error!(UnexpectedOperator, TokenType::Slash, 1),
@@ -1015,7 +1015,7 @@ mod tests {
         let code = "-(-5x((int*)exp())/t - 3.14.15k/(2x^2-5x-1)*y - A[N*(i++)+j]";
 
         let errors_actual: Vec<SyntaxError> =
-            SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
+            SyntaxAnalyzer::new(&tokenizer::tokenize(code)).analyze();
         let errors_expected: Vec<SyntaxError> = vec![
             test_error!(UnmatchedParenthesis, TokenType::LeftParenthesis, 1),
             test_error!(InvalidFunctionName, TokenType::Number, 3, "5".to_string()),
@@ -1054,7 +1054,7 @@ mod tests {
         let code = "-(-exp(3et/4.0.2, 2i-1)/L + )((void*)*f()) + ((i++) + (++i/(i--))/k//) + 6.000.500.5";
 
         let errors_actual: Vec<SyntaxError> =
-            SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
+            SyntaxAnalyzer::new(&tokenizer::tokenize(code)).analyze();
         let errors_expected: Vec<SyntaxError> = vec![
             test_error!(InvalidVariableName, TokenType::Number, 7, "3".to_string()),
             test_error!(UnexpectedDot, TokenType::Dot, 14),
@@ -1089,7 +1089,7 @@ mod tests {
         let code = "**f(*k, -p+1, ))2.1.1 + 1.8q((-5x ++ i)";
 
         let errors_actual: Vec<SyntaxError> =
-            SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
+            SyntaxAnalyzer::new(&tokenizer::tokenize(code)).analyze();
         let errors_expected: Vec<SyntaxError> = vec![
             test_error!(UnexpectedOperator, TokenType::Asterisk, 0),
             test_error!(UnexpectedOperator, TokenType::Asterisk, 1),
@@ -1119,7 +1119,7 @@ mod tests {
         let code = "/.1(2x^2-5x+7)-(-i)+ (j++)/0 - )(*f)(2, 7-x, )/q + send(-(2x+7)/A[j, i], 127.0.0.1 ) + )/";
 
         let errors_actual: Vec<SyntaxError> =
-            SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
+            SyntaxAnalyzer::new(&tokenizer::tokenize(code)).analyze();
         let errors_expected: Vec<SyntaxError> = vec![
             test_error!(UnexpectedOperator, TokenType::Slash, 0),
             test_error!(UnexpectedDot, TokenType::Dot, 1),
@@ -1155,7 +1155,7 @@ mod tests {
             "*101*1#(t-q)(t+q)//dt - (int*)f(8t, -(k/h)A[i+6.]), exp(), ))(t-k*8.00.1/.0";
 
         let errors_actual: Vec<SyntaxError> =
-            SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
+            SyntaxAnalyzer::new(&tokenizer::tokenize(code)).analyze();
         let errors_expected: Vec<SyntaxError> = vec![
             test_error!(UnexpectedOperator, TokenType::Asterisk, 0),
             test_error!(UnknownToken, TokenType::Unknown, 6, "#".to_string()),
@@ -1196,7 +1196,7 @@ mod tests {
     fn test_syntax_18() {
         let code = "-(-5x((int*)exp())/t - \"sdds + 4.5+3";
         let errors_actual: Vec<SyntaxError> =
-            SyntaxAnalyzer::new(tokenizer::tokenize(code)).analyze();
+            SyntaxAnalyzer::new(&tokenizer::tokenize(code)).analyze();
         let errors_expected: Vec<SyntaxError> = vec![
             test_error!(UnmatchedParenthesis, TokenType::LeftParenthesis, 1),
             test_error!(InvalidFunctionName, TokenType::Number, 3, "5".to_string()),
