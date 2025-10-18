@@ -4,6 +4,6 @@ TESTS_AMOUNT=18
 for i in {1..$TESTS_AMOUNT}
 do
     echo "Test $i"
-    ./target/debug/Lab1 -p -c ./Code/Tests/test$i.xai
+    ./target/debug/Lab1 -p -c ./Lab1/Tests/test$i.xai
     echo "\n\n"
 done
