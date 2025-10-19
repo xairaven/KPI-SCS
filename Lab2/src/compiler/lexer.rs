@@ -1,4 +1,5 @@
 use crate::compiler::tokenizer::{Token, TokenType};
+use colored::Colorize;
 use std::num::ParseFloatError;
 
 #[derive(Debug)]
@@ -8,7 +9,7 @@ pub struct Lexer {
     in_string: bool,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Lexeme {
     Identifier(String),
     Number(f64),
@@ -26,6 +27,29 @@ pub enum Lexeme {
     Or,
     Comma,
     String(String),
+}
+
+impl Lexeme {
+    pub fn display_type(&self) -> &str {
+        match self {
+            Lexeme::Identifier(_) => "Identifier",
+            Lexeme::Number(_) => "Number",
+            Lexeme::Plus => "Plus",
+            Lexeme::Minus => "Minus",
+            Lexeme::Multiply => "Multiply",
+            Lexeme::Divide => "Divide",
+            Lexeme::Modulus => "Modulus",
+            Lexeme::LeftParenthesis => "Left Parenthesis",
+            Lexeme::RightParenthesis => "Right Parenthesis",
+            Lexeme::LeftBracket => "Left Bracket",
+            Lexeme::RightBracket => "Right Bracket",
+            Lexeme::Not => "Not",
+            Lexeme::And => "And",
+            Lexeme::Or => "Or",
+            Lexeme::Comma => "Comma",
+            Lexeme::String(_) => "String",
+        }
+    }
 }
 
 impl Lexer {
@@ -130,6 +154,22 @@ impl Lexer {
 
     fn peek_next_by(&self, by: usize) -> Option<&Token> {
         self.tokens.get(self.current_index + by)
+    }
+}
+
+pub fn report(
+    result: Result<Vec<Lexeme>, LexerError>,
+) -> Result<(Vec<Lexeme>, String), String> {
+    match result {
+        Ok(lexemes) => {
+            let length = lexemes.len();
+            let report = format!("\nLexer successfully produced {} lexemes.\n", length)
+                .bold()
+                .green()
+                .to_string();
+            Ok((lexemes, report))
+        },
+        Err(error) => Err(format!("\n{} {}", "Lexer error:".bold().red(), error)),
     }
 }
 

@@ -18,17 +18,19 @@ pub fn compile(source: &str, is_pretty: bool) -> String {
     };
 
     // Making lexemes
-    let lexemes = match Lexer::new(tokens).run() {
-        Ok(data) => data,
-        Err(error) => {
-            let lexer_report = format!("Lexer error: {}", error);
-            return report.add(&lexer_report);
+    let lexemes_result = Lexer::new(tokens).run();
+    let lexemes = match lexer::report(lexemes_result) {
+        Ok((lexemes, lexer_report)) => {
+            report = report.add(&lexer_report);
+            lexemes
         },
+        Err(lexer_report) => return report.add(&lexer_report),
     };
 
     report
 }
 
+pub mod ast;
 pub mod lexer;
 pub mod syntax;
 pub mod tokenizer;
