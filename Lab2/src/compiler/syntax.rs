@@ -137,25 +137,6 @@ impl SyntaxAnalyzer {
             in_string: false,
         };
 
-        // Deleting redundant spaces & tabs
-        {
-            let mut delete_spaces = Vec::new();
-            let mut in_string = false;
-            for (i, token) in self.tokens.iter().enumerate() {
-                if token.kind == TokenType::QuotationMark {
-                    in_string = !in_string;
-                }
-                if !in_string
-                    && (token.kind == TokenType::Space || token.kind == TokenType::Tab)
-                {
-                    delete_spaces.push(i);
-                }
-            }
-            for index in delete_spaces.iter().rev() {
-                self.tokens.remove(*index);
-            }
-        }
-
         while self.current_index < self.tokens.len() {
             let token = &self.tokens[self.current_index];
 
