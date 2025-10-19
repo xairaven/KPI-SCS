@@ -1,4 +1,4 @@
-use crate::compiler::simplifier::Simplifier;
+use crate::compiler::lexer::Lexer;
 use crate::compiler::syntax::SyntaxAnalyzer;
 use std::ops::Add;
 
@@ -17,18 +17,18 @@ pub fn compile(source: &str, is_pretty: bool) -> String {
         report = report.add(&syntax_report);
     };
 
-    // Simplification
-    let tokens = match Simplifier::new(tokens).simplify() {
+    // Making lexemes
+    let lexemes = match Lexer::new(tokens).run() {
         Ok(data) => data,
         Err(error) => {
-            let simplifier_report = format!("Simplifier error: {}", error);
-            return report.add(&simplifier_report);
+            let lexer_report = format!("Lexer error: {}", error);
+            return report.add(&lexer_report);
         },
     };
 
     report
 }
 
-pub mod simplifier;
+pub mod lexer;
 pub mod syntax;
 pub mod tokenizer;

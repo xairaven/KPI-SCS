@@ -20,6 +20,36 @@ impl Token {
             )
         }
     }
+
+    pub fn display_value(&self) -> String {
+        let text = match self.kind {
+            TokenType::Identifier | TokenType::Number => match &self.value {
+                Some(value) => value.as_str(),
+                None => "NONE",
+            },
+            TokenType::Plus => "+",
+            TokenType::Minus => "-",
+            TokenType::Asterisk => "*",
+            TokenType::Slash => "/",
+            TokenType::Percent => "%",
+            TokenType::LeftParenthesis => "(",
+            TokenType::RightParenthesis => ")",
+            TokenType::LeftBracket => "[",
+            TokenType::RightBracket => "]",
+            TokenType::ExclamationMark => "!",
+            TokenType::Ampersand => "&",
+            TokenType::Pipe => "|",
+            TokenType::Dot => ".",
+            TokenType::Comma => ",",
+            TokenType::QuotationMark => "\"",
+            TokenType::Space => " ",
+            TokenType::Tab => "\\t",
+            TokenType::NewLine => "\\n",
+            TokenType::Unknown => "<UNKNOWN>",
+        };
+
+        text.to_string()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Display)]
