@@ -45,7 +45,7 @@ impl Lexer {
         while self.current_index < self.tokens.len() {
             let token = &self.tokens[self.current_index];
 
-            if self.in_string {
+            if self.in_string && token.kind != TokenType::QuotationMark {
                 string_buffer.push_str(token.display_value().as_str());
                 self.current_index += 1;
                 continue;
@@ -171,7 +171,6 @@ impl std::fmt::Display for LexerError {
 mod tests {
     use super::*;
     use crate::compiler::tokenizer;
-    use crate::token;
 
     #[test]
     fn test_1() {
@@ -190,6 +189,36 @@ mod tests {
             Lexeme::Identifier("c".to_string()),
             Lexeme::Minus,
             Lexeme::Number(4.5),
+        ];
+        assert_eq!(actual_lexemes, expected_lexemes);
+    }
+
+    #[test]
+    fn test_2() {
+        let code = "a + sin((x - 12.34) / 2.0) + \"ddf.fd s 2.3\" + b";
+
+        let tokens = tokenizer::tokenize(code);
+        let lexer_result = Lexer::new(tokens).run();
+        assert!(lexer_result.is_ok());
+
+        let actual_lexemes = lexer_result.unwrap();
+        let expected_lexemes = vec![
+            Lexeme::Identifier("a".to_string()),
+            Lexeme::Plus,
+            Lexeme::Identifier("sin".to_string()),
+            Lexeme::LeftParenthesis,
+            Lexeme::LeftParenthesis,
+            Lexeme::Identifier("x".to_string()),
+            Lexeme::Minus,
+            Lexeme::Number(12.34),
+            Lexeme::RightParenthesis,
+            Lexeme::Divide,
+            Lexeme::Number(2.0),
+            Lexeme::RightParenthesis,
+            Lexeme::Plus,
+            Lexeme::String("ddf.fd s 2.3".to_string()),
+            Lexeme::Plus,
+            Lexeme::Identifier("b".to_string()),
         ];
         assert_eq!(actual_lexemes, expected_lexemes);
     }
