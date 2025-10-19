@@ -1,3 +1,4 @@
+use crate::compiler::simplifier::Simplifier;
 use crate::compiler::syntax::SyntaxAnalyzer;
 use std::ops::Add;
 
@@ -16,8 +17,18 @@ pub fn compile(source: &str, is_pretty: bool) -> String {
         report = report.add(&syntax_report);
     };
 
+    // Simplification
+    let tokens = match Simplifier::new(tokens).simplify() {
+        Ok(data) => data,
+        Err(error) => {
+            let simplifier_report = format!("Simplifier error: {}", error);
+            return report.add(&simplifier_report);
+        },
+    };
+
     report
 }
 
+pub mod simplifier;
 pub mod syntax;
 pub mod tokenizer;

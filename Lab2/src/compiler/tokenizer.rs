@@ -54,6 +54,7 @@ pub enum TokenType {
     Unknown,
 }
 
+#[macro_export]
 macro_rules! token {
     ($token_type:expr, $position:literal) => {
         Token {
