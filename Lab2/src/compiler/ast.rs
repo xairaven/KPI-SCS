@@ -7,6 +7,7 @@ use std::slice::Iter;
 pub enum AstNode {
     Number(f64),
     Identifier(String),
+    StringLiteral(String),
     UnaryOperation {
         operation: UnaryOperationKind,
         expression: Box<AstNode>,
@@ -174,6 +175,12 @@ impl<'a> AstParser<'a> {
         if let Some(lexeme) = self.consume() {
             match lexeme {
                 Lexeme::Number(value) => Ok(AstNode::Number(*value)),
+                Lexeme::String(value) => match self.peek() {
+                    Some(lexeme) if lexeme == &Lexeme::Comma => {
+                        Ok(AstNode::StringLiteral(value.clone()))
+                    },
+                    _ => Err(AstError::StringOutsideFunction(value.clone())),
+                },
 
                 Lexeme::LeftParenthesis => {
                     let inner_node = self.parse_logical_or()?;
@@ -250,12 +257,13 @@ pub fn report(result: Result<AstNode, AstError>) -> Result<(AstNode, String), St
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum AstError {
     ExpectedRightParenthesis,
     ExpectedCommaOrRightParenthesis(Lexeme),
     NotExpectedEndOfExpression,
     NotExpectedLexeme(Lexeme),
+    StringOutsideFunction(String),
     UnreachableLexeme(Lexeme),
 }
 
@@ -270,6 +278,9 @@ impl std::fmt::Display for AstError {
             Self::NotExpectedEndOfExpression => "Not expected end of expression.",
             Self::NotExpectedLexeme(lexeme) => {
                 &format!("Not expected lexeme \"{}\".", lexeme.display_type())
+            },
+            Self::StringOutsideFunction(string) => {
+                &format!("String literal \"{}\" outside function call.", string)
             },
             Self::UnreachableLexeme(lexeme) => {
                 &format!("Unreachable lexeme \"{}\".", lexeme.display_type())
@@ -317,6 +328,7 @@ impl AstNode {
         let node_text = match self {
             AstNode::Number(n) => n.to_string().bright_blue(),
             AstNode::Identifier(s) => s.to_string().green(),
+            AstNode::StringLiteral(s) => format!("\"{}\"", s).bright_magenta(),
             AstNode::UnaryOperation { operation, .. } => {
                 operation.to_string().yellow().bold()
             },
@@ -330,7 +342,7 @@ impl AstNode {
         let new_prefix = prefix + if is_last { "    " } else { "│   " };
 
         match self {
-            AstNode::Number(_) | AstNode::Identifier(_) => {},
+            AstNode::Number(_) | AstNode::Identifier(_) | AstNode::StringLiteral(_) => {},
 
             AstNode::UnaryOperation { expression, .. } => {
                 expression.print_recursive(tree, new_prefix, true);
@@ -407,6 +419,54 @@ mod tests {
                     name: "func".to_string(),
                     arguments: vec![
                         AstNode::Identifier("a".to_string()),
+                        AstNode::BinaryOperation {
+                            operation: BinaryOperationKind::Multiply,
+                            left: Box::new(AstNode::BinaryOperation {
+                                operation: BinaryOperationKind::Minus,
+                                left: Box::new(AstNode::Identifier("b".to_string())),
+                                right: Box::new(AstNode::Identifier("c".to_string())),
+                            }),
+                            right: Box::new(AstNode::UnaryOperation {
+                                operation: UnaryOperationKind::Not,
+                                expression: Box::new(AstNode::Identifier(
+                                    "d".to_string(),
+                                )),
+                            }),
+                        },
+                    ],
+                }),
+            }),
+        };
+        assert_eq!(expected_ast, actual_ast);
+    }
+
+    #[test]
+    fn test_3() {
+        let code = "a + b * c + \"hello\"";
+        let tokens = tokenizer::tokenize(code);
+        let lexemes = lexer::Lexer::new(tokens).run();
+        assert!(lexemes.is_ok());
+        let lexemes = lexemes.unwrap();
+        let result = AstParser::new(&lexemes).parse();
+        let actual_error = Err(AstError::StringOutsideFunction("hello".to_string()));
+        assert_eq!(actual_error, result);
+    }
+
+    #[test]
+    fn test_4() {
+        let code = "a + b * func(a, \"hello\", (b - c) * !d)";
+        let actual_ast = process(code);
+        let expected_ast = AstNode::BinaryOperation {
+            operation: BinaryOperationKind::Plus,
+            left: Box::new(AstNode::Identifier("a".to_string())),
+            right: Box::new(AstNode::BinaryOperation {
+                operation: BinaryOperationKind::Multiply,
+                left: Box::new(AstNode::Identifier("b".to_string())),
+                right: Box::new(AstNode::FunctionCall {
+                    name: "func".to_string(),
+                    arguments: vec![
+                        AstNode::Identifier("a".to_string()),
+                        AstNode::StringLiteral("hello".to_string()),
                         AstNode::BinaryOperation {
                             operation: BinaryOperationKind::Multiply,
                             left: Box::new(AstNode::BinaryOperation {
