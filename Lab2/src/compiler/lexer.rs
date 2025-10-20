@@ -163,10 +163,17 @@ pub fn report(
     match result {
         Ok(lexemes) => {
             let length = lexemes.len();
-            let report = format!("\nLexer successfully produced {} lexemes.\n", length)
-                .bold()
-                .green()
-                .to_string();
+            let first_line =
+                format!("\nLexer successfully produced {} lexemes.\n", length)
+                    .bold()
+                    .green()
+                    .to_string();
+            let lexemes_list = lexemes
+                .iter()
+                .map(|lexeme| format!("- {:?}", lexeme))
+                .collect::<Vec<String>>()
+                .join("\n");
+            let report = format!("{}{}\n", first_line, lexemes_list);
             Ok((lexemes, report))
         },
         Err(error) => Err(format!("\n{} {}", "Lexer error:".bold().red(), error)),
