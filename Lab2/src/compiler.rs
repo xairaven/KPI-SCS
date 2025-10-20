@@ -27,6 +27,16 @@ pub fn compile(source: &str, is_pretty: bool) -> String {
         Err(lexer_report) => return report.add(&lexer_report),
     };
 
+    // AST Generation
+    let ast_result = ast::AstParser::new(&lexemes).parse();
+    let ast = match ast::report(ast_result) {
+        Ok((ast, ast_report)) => {
+            report = report.add(&ast_report);
+            ast
+        },
+        Err(ast_report) => return report.add(&ast_report),
+    };
+
     report
 }
 
