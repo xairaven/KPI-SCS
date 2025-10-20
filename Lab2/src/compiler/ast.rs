@@ -3,7 +3,7 @@ use colored::Colorize;
 use std::iter::Peekable;
 use std::slice::Iter;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum AstNode {
     Number(f64),
     Identifier(String),
@@ -22,13 +22,13 @@ pub enum AstNode {
     },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum UnaryOperationKind {
     Minus,
     Not,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum BinaryOperationKind {
     Plus,
     Minus,
@@ -237,12 +237,14 @@ impl<'a> AstParser<'a> {
 
 pub fn report(result: Result<AstNode, AstError>) -> Result<(AstNode, String), String> {
     match result {
-        Ok(lexemes) => {
-            let report = "\nAbstract-Syntax Tree generation success.\n"
-                .bold()
-                .green()
-                .to_string();
-            Ok((lexemes, report))
+        Ok(ast) => {
+            let report = format!(
+                "\n{}\n{}",
+                "Abstract-Syntax Tree generation success.".bold().green(),
+                ast.pretty_print()
+            );
+
+            Ok((ast, report))
         },
         Err(error) => Err(format!("\n{} {}", "AST error:".bold().red(), error)),
     }
@@ -278,23 +280,151 @@ impl std::fmt::Display for AstError {
     }
 }
 
+impl std::fmt::Display for UnaryOperationKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Minus => write!(f, "-"),
+            Self::Not => write!(f, "!"),
+        }
+    }
+}
+
+impl std::fmt::Display for BinaryOperationKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Plus => write!(f, "+"),
+            Self::Minus => write!(f, "-"),
+            Self::Multiply => write!(f, "*"),
+            Self::Divide => write!(f, "/"),
+            Self::Or => write!(f, "|"),
+            Self::And => write!(f, "&"),
+        }
+    }
+}
+
+impl AstNode {
+    pub fn pretty_print(&self) -> String {
+        let mut tree = String::new();
+        self.print_recursive(&mut tree, "".to_string(), true);
+        tree
+    }
+
+    fn print_recursive(&self, tree: &mut String, prefix: String, is_last: bool) {
+        let connector = if is_last { "└── " } else { "├── " };
+
+        tree.push_str(&format!("{}{}", prefix.dimmed(), connector.dimmed()));
+
+        let node_text = match self {
+            AstNode::Number(n) => n.to_string().bright_blue(),
+            AstNode::Identifier(s) => s.to_string().green(),
+            AstNode::UnaryOperation { operation, .. } => {
+                operation.to_string().yellow().bold()
+            },
+            AstNode::BinaryOperation { operation, .. } => {
+                operation.to_string().yellow().bold()
+            },
+            AstNode::FunctionCall { name, .. } => format!("{}(...)", name).cyan().bold(),
+        };
+        tree.push_str(&format!("{}\n", node_text));
+
+        let new_prefix = prefix + if is_last { "    " } else { "│   " };
+
+        match self {
+            AstNode::Number(_) | AstNode::Identifier(_) => {},
+
+            AstNode::UnaryOperation { expression, .. } => {
+                expression.print_recursive(tree, new_prefix, true);
+            },
+
+            AstNode::BinaryOperation { left, right, .. } => {
+                left.print_recursive(tree, new_prefix.clone(), false);
+                right.print_recursive(tree, new_prefix, true);
+            },
+
+            AstNode::FunctionCall { arguments, .. } => {
+                let arg_count = arguments.len();
+                for (i, arg) in arguments.iter().enumerate() {
+                    let is_last_arg = i == arg_count - 1;
+                    arg.print_recursive(tree, new_prefix.clone(), is_last_arg);
+                }
+            },
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::compiler::{lexer, tokenizer};
+    use crate::compiler::{ast, lexer, tokenizer};
 
-    #[test]
-    fn test_1() {
-        let code = "a + b * c";
-
+    fn process(code: &str) -> AstNode {
         let tokens = tokenizer::tokenize(code);
         let lexemes = lexer::Lexer::new(tokens).run();
         assert!(lexemes.is_ok());
         let lexemes = lexemes.unwrap();
+        let result = AstParser::new(&lexemes).parse();
+        let report = report(result);
+        assert!(report.is_ok());
+        match report {
+            Ok((ast, report)) => {
+                println!("{}", report);
+                ast
+            },
+            Err(report) => {
+                println!("{}", report);
+                panic!();
+            },
+        }
+    }
 
-        let mut ast_parser = AstParser::new(&lexemes).parse();
-        assert!(ast_parser.is_ok());
-        let node = ast_parser.unwrap();
-        dbg!(node);
+    #[test]
+    fn test_1() {
+        let code = "a + b * c";
+        let actual_ast = process(code);
+        let expected_ast = AstNode::BinaryOperation {
+            operation: BinaryOperationKind::Plus,
+            left: Box::new(AstNode::Identifier("a".to_string())),
+            right: Box::new(AstNode::BinaryOperation {
+                operation: BinaryOperationKind::Multiply,
+                left: Box::new(AstNode::Identifier("b".to_string())),
+                right: Box::new(AstNode::Identifier("c".to_string())),
+            }),
+        };
+        assert_eq!(expected_ast, actual_ast);
+    }
+
+    #[test]
+    fn test_2() {
+        let code = "a + b * func(a, (b - c) * !d)";
+        let actual_ast = process(code);
+        let expected_ast = AstNode::BinaryOperation {
+            operation: BinaryOperationKind::Plus,
+            left: Box::new(AstNode::Identifier("a".to_string())),
+            right: Box::new(AstNode::BinaryOperation {
+                operation: BinaryOperationKind::Multiply,
+                left: Box::new(AstNode::Identifier("b".to_string())),
+                right: Box::new(AstNode::FunctionCall {
+                    name: "func".to_string(),
+                    arguments: vec![
+                        AstNode::Identifier("a".to_string()),
+                        AstNode::BinaryOperation {
+                            operation: BinaryOperationKind::Multiply,
+                            left: Box::new(AstNode::BinaryOperation {
+                                operation: BinaryOperationKind::Minus,
+                                left: Box::new(AstNode::Identifier("b".to_string())),
+                                right: Box::new(AstNode::Identifier("c".to_string())),
+                            }),
+                            right: Box::new(AstNode::UnaryOperation {
+                                operation: UnaryOperationKind::Not,
+                                expression: Box::new(AstNode::Identifier(
+                                    "d".to_string(),
+                                )),
+                            }),
+                        },
+                    ],
+                }),
+            }),
+        };
+        assert_eq!(expected_ast, actual_ast);
     }
 }
