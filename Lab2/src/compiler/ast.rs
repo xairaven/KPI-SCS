@@ -19,6 +19,10 @@ pub enum AstNode {
         name: String,
         arguments: Vec<AstNode>,
     },
+    ArrayAccess {
+        identifier: String,
+        index: Box<AstNode>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -223,6 +227,22 @@ impl AstParser {
                             name: function_name,
                             arguments: args,
                         })
+                    } else if self.peek() == Some(&Lexeme::LeftBracket)
+                        && let Some(_) = self.consume()
+                    {
+                        let identifier = name.clone();
+                        let index = self.parse_logical_or()?;
+
+                        if self.peek() == Some(&Lexeme::RightBracket)
+                            && let Some(_) = self.consume()
+                        {
+                            Ok(AstNode::ArrayAccess {
+                                identifier,
+                                index: Box::new(index),
+                            })
+                        } else {
+                            Err(AstError::ExpectedRightBracket)
+                        }
                     } else {
                         Ok(AstNode::Identifier(name.clone()))
                     }
@@ -282,6 +302,7 @@ pub fn report(result: Result<AstNode, AstError>) -> Result<(AstNode, String), St
 
 #[derive(Debug, PartialEq)]
 pub enum AstError {
+    ExpectedRightBracket,
     ExpectedRightParenthesis,
     ExpectedCommaOrRightParenthesis(Lexeme),
     NotExpectedEndOfExpression,
@@ -297,6 +318,7 @@ impl std::fmt::Display for AstError {
                 "Expected ',' or ')', but found \"{}\".",
                 lexeme.display_type()
             ),
+            Self::ExpectedRightBracket => "Expected right bracket.",
             Self::ExpectedRightParenthesis => "Expected right parenthesis.",
             Self::NotExpectedEndOfExpression => "Not expected end of expression.",
             Self::NotExpectedLexeme(lexeme) => {
@@ -359,6 +381,9 @@ impl AstNode {
                 operation.to_string().yellow().bold()
             },
             AstNode::FunctionCall { name, .. } => format!("{}(...)", name).cyan().bold(),
+            AstNode::ArrayAccess { identifier, .. } => {
+                format!("{}[...]", identifier).blue().bold()
+            },
         };
         tree.push_str(&format!("{}\n", node_text));
 
@@ -383,6 +408,13 @@ impl AstNode {
                     arg.print_recursive(tree, new_prefix.clone(), is_last_arg);
                 }
             },
+
+            AstNode::ArrayAccess {
+                identifier: _,
+                index,
+            } => {
+                index.print_recursive(tree, new_prefix.clone(), true);
+            },
         }
     }
 }
@@ -390,6 +422,7 @@ impl AstNode {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::compiler::syntax::SyntaxAnalyzer;
     use crate::compiler::{lexer, tokenizer};
 
     fn process(code: &str) -> AstNode {
@@ -542,6 +575,29 @@ mod tests {
                         AstNode::StringLiteral("hello".to_string()),
                     ],
                 }),
+            }),
+        };
+        assert_eq!(expected_ast, actual_ast);
+    }
+
+    #[test]
+    fn test_6() {
+        let code = "a + b * c + a[5]";
+        let actual_ast = process(code);
+        let expected_ast = AstNode::BinaryOperation {
+            operation: BinaryOperationKind::Plus,
+            left: Box::new(AstNode::BinaryOperation {
+                operation: BinaryOperationKind::Plus,
+                left: Box::new(AstNode::Identifier("a".to_string())),
+                right: Box::new(AstNode::BinaryOperation {
+                    operation: BinaryOperationKind::Multiply,
+                    left: Box::new(AstNode::Identifier("b".to_string())),
+                    right: Box::new(AstNode::Identifier("c".to_string())),
+                }),
+            }),
+            right: Box::new(AstNode::ArrayAccess {
+                identifier: "a".to_string(),
+                index: Box::new(AstNode::Number(5.0)),
             }),
         };
         assert_eq!(expected_ast, actual_ast);
