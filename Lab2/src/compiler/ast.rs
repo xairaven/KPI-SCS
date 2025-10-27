@@ -21,7 +21,7 @@ pub enum AstNode {
     },
     ArrayAccess {
         identifier: String,
-        index: Box<AstNode>,
+        indices: Vec<AstNode>,
     },
 }
 
@@ -227,22 +227,29 @@ impl AstParser {
                             name: function_name,
                             arguments: args,
                         })
-                    } else if self.peek() == Some(&Lexeme::LeftBracket)
-                        && let Some(_) = self.consume()
-                    {
+                    } else if self.peek() == Some(&Lexeme::LeftBracket) {
                         let identifier = name.clone();
-                        let index = self.parse_logical_or()?;
+                        let mut indices: Vec<AstNode> = Vec::new();
 
-                        if self.peek() == Some(&Lexeme::RightBracket)
-                            && let Some(_) = self.consume()
-                        {
-                            Ok(AstNode::ArrayAccess {
-                                identifier,
-                                index: Box::new(index),
-                            })
-                        } else {
-                            Err(AstError::ExpectedRightBracket)
+                        loop {
+                            let _ = self.consume();
+                            let index = self.parse_logical_or()?;
+                            if self.peek() == Some(&Lexeme::RightBracket) {
+                                let _ = self.consume();
+                                indices.push(index);
+                                if self.peek() == Some(&Lexeme::LeftBracket) {
+                                    continue;
+                                } else {
+                                    break;
+                                }
+                            } else {
+                                return Err(AstError::ExpectedRightBracket);
+                            }
                         }
+                        Ok(AstNode::ArrayAccess {
+                            identifier,
+                            indices,
+                        })
                     } else {
                         Ok(AstNode::Identifier(name.clone()))
                     }
@@ -411,9 +418,13 @@ impl AstNode {
 
             AstNode::ArrayAccess {
                 identifier: _,
-                index,
+                indices,
             } => {
-                index.print_recursive(tree, new_prefix.clone(), true);
+                let dimensions = indices.len();
+                for (i, index) in indices.iter().enumerate() {
+                    let is_last_arg = i == dimensions - 1;
+                    index.print_recursive(tree, new_prefix.clone(), is_last_arg);
+                }
             },
         }
     }
@@ -582,7 +593,7 @@ mod tests {
 
     #[test]
     fn test_6() {
-        let code = "a + b * c + a[5]";
+        let code = "a + b * c + a[5] * sdsf[10 * 32 / 2]";
         let actual_ast = process(code);
         let expected_ast = AstNode::BinaryOperation {
             operation: BinaryOperationKind::Plus,
@@ -595,9 +606,77 @@ mod tests {
                     right: Box::new(AstNode::Identifier("c".to_string())),
                 }),
             }),
-            right: Box::new(AstNode::ArrayAccess {
-                identifier: "a".to_string(),
-                index: Box::new(AstNode::Number(5.0)),
+            right: Box::new(AstNode::BinaryOperation {
+                operation: BinaryOperationKind::Multiply,
+                left: Box::new(AstNode::ArrayAccess {
+                    identifier: "a".to_string(),
+                    indices: vec![AstNode::Number(5.0)],
+                }),
+                right: Box::new(AstNode::ArrayAccess {
+                    identifier: "sdsf".to_string(),
+                    indices: vec![AstNode::BinaryOperation {
+                        operation: BinaryOperationKind::Divide,
+                        left: Box::new(AstNode::BinaryOperation {
+                            operation: BinaryOperationKind::Multiply,
+                            left: Box::new(AstNode::Number(10.0)),
+                            right: Box::new(AstNode::Number(32.0)),
+                        }),
+                        right: Box::new(AstNode::Number(2.0)),
+                    }],
+                }),
+            }),
+        };
+        assert_eq!(expected_ast, actual_ast);
+    }
+
+    #[test]
+    fn test_7() {
+        let code = "a + b * c + a[5] * sdsf[10 * 32 / 2][5 - 3 * c] * s";
+        let actual_ast = process(code);
+        let expected_ast = AstNode::BinaryOperation {
+            operation: BinaryOperationKind::Plus,
+            left: Box::new(AstNode::BinaryOperation {
+                operation: BinaryOperationKind::Plus,
+                left: Box::new(AstNode::Identifier("a".to_string())),
+                right: Box::new(AstNode::BinaryOperation {
+                    operation: BinaryOperationKind::Multiply,
+                    left: Box::new(AstNode::Identifier("b".to_string())),
+                    right: Box::new(AstNode::Identifier("c".to_string())),
+                }),
+            }),
+            right: Box::new(AstNode::BinaryOperation {
+                operation: BinaryOperationKind::Multiply,
+                left: Box::new(AstNode::BinaryOperation {
+                    operation: BinaryOperationKind::Multiply,
+                    left: Box::new(AstNode::ArrayAccess {
+                        identifier: "a".to_string(),
+                        indices: vec![AstNode::Number(5.0)],
+                    }),
+                    right: Box::new(AstNode::ArrayAccess {
+                        identifier: "sdsf".to_string(),
+                        indices: vec![
+                            AstNode::BinaryOperation {
+                                operation: BinaryOperationKind::Divide,
+                                left: Box::new(AstNode::BinaryOperation {
+                                    operation: BinaryOperationKind::Multiply,
+                                    left: Box::new(AstNode::Number(10.0)),
+                                    right: Box::new(AstNode::Number(32.0)),
+                                }),
+                                right: Box::new(AstNode::Number(2.0)),
+                            },
+                            AstNode::BinaryOperation {
+                                operation: BinaryOperationKind::Minus,
+                                left: Box::new(AstNode::Number(5.0)),
+                                right: Box::new(AstNode::BinaryOperation {
+                                    operation: BinaryOperationKind::Multiply,
+                                    left: Box::new(AstNode::Number(3.0)),
+                                    right: Box::new(AstNode::Identifier("c".to_string())),
+                                }),
+                            },
+                        ],
+                    }),
+                }),
+                right: Box::new(AstNode::Identifier("s".to_string())),
             }),
         };
         assert_eq!(expected_ast, actual_ast);
