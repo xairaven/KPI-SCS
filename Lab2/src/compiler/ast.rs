@@ -1,7 +1,5 @@
 use crate::compiler::lexer::Lexeme;
 use colored::Colorize;
-use std::iter::Peekable;
-use std::slice::Iter;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum AstNode {
@@ -39,14 +37,16 @@ pub enum BinaryOperationKind {
     And,
 }
 
-pub struct AstParser<'a> {
-    lexemes: Peekable<Iter<'a, Lexeme>>,
+pub struct AstParser {
+    lexemes: Vec<Lexeme>,
+    current_index: usize,
 }
 
-impl<'a> AstParser<'a> {
-    pub fn new(lexemes: &'a [Lexeme]) -> Self {
+impl AstParser {
+    pub fn new(lexemes: Vec<Lexeme>) -> Self {
         Self {
-            lexemes: lexemes.iter().peekable(),
+            lexemes,
+            current_index: 0,
         }
     }
 
@@ -60,14 +60,6 @@ impl<'a> AstParser<'a> {
         } else {
             Ok(node)
         }
-    }
-
-    fn peek(&mut self) -> Option<&Lexeme> {
-        self.lexemes.peek().copied()
-    }
-
-    fn consume(&mut self) -> Option<&'a Lexeme> {
-        self.lexemes.next()
     }
 
     fn parse_logical_or(&mut self) -> Result<AstNode, AstError> {
@@ -174,7 +166,7 @@ impl<'a> AstParser<'a> {
     fn parse_primary(&mut self) -> Result<AstNode, AstError> {
         if let Some(lexeme) = self.consume() {
             match lexeme {
-                Lexeme::Number(value) => Ok(AstNode::Number(*value)),
+                Lexeme::Number(value) => Ok(AstNode::Number(value)),
                 Lexeme::String(value) => match self.peek() {
                     Some(lexeme) if lexeme == &Lexeme::Comma => {
                         Ok(AstNode::StringLiteral(value.clone()))
@@ -239,6 +231,35 @@ impl<'a> AstParser<'a> {
         } else {
             Err(AstError::NotExpectedEndOfExpression)
         }
+    }
+
+    fn consume(&mut self) -> Option<Lexeme> {
+        if let Some(lexeme) = self.peek() {
+            let lexeme = lexeme.clone();
+            self.current_index += 1;
+            return Some(lexeme);
+        }
+        None
+    }
+
+    fn peek(&self) -> Option<&Lexeme> {
+        self.lexemes.get(self.current_index)
+    }
+
+    fn peek_next(&self) -> Option<&Lexeme> {
+        self.lexemes.get(self.current_index + 1)
+    }
+
+    fn peek_next_by(&self, by: usize) -> Option<&Lexeme> {
+        self.lexemes.get(self.current_index + by)
+    }
+
+    fn peek_previous(&self) -> Option<&Lexeme> {
+        self.lexemes.get(self.current_index - 1)
+    }
+
+    fn peek_previous_by(&self, by: usize) -> Option<&Lexeme> {
+        self.lexemes.get(self.current_index - by)
     }
 }
 
@@ -367,14 +388,14 @@ impl AstNode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::compiler::{ast, lexer, tokenizer};
+    use crate::compiler::{lexer, tokenizer};
 
     fn process(code: &str) -> AstNode {
         let tokens = tokenizer::tokenize(code);
         let lexemes = lexer::Lexer::new(tokens).run();
         assert!(lexemes.is_ok());
         let lexemes = lexemes.unwrap();
-        let result = AstParser::new(&lexemes).parse();
+        let result = AstParser::new(lexemes).parse();
         let report = report(result);
         assert!(report.is_ok());
         match report {
@@ -447,7 +468,7 @@ mod tests {
         let lexemes = lexer::Lexer::new(tokens).run();
         assert!(lexemes.is_ok());
         let lexemes = lexemes.unwrap();
-        let result = AstParser::new(&lexemes).parse();
+        let result = AstParser::new(lexemes).parse();
         let actual_error = Err(AstError::StringOutsideFunction("hello".to_string()));
         assert_eq!(actual_error, result);
     }

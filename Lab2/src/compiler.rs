@@ -28,7 +28,7 @@ pub fn compile(source: &str, is_pretty: bool) -> String {
     };
 
     // AST Generation
-    let ast_result = ast::AstParser::new(&lexemes).parse();
+    let ast_result = ast::AstParser::new(lexemes).parse();
     let ast = match ast::report(ast_result) {
         Ok((ast, ast_report)) => {
             report = report.add(&ast_report);
