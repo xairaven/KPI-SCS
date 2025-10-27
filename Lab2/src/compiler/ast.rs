@@ -167,11 +167,13 @@ impl AstParser {
         if let Some(lexeme) = self.consume() {
             match lexeme {
                 Lexeme::Number(value) => Ok(AstNode::Number(value)),
-                Lexeme::String(value) => match self.peek() {
-                    Some(lexeme) if lexeme == &Lexeme::Comma => {
-                        Ok(AstNode::StringLiteral(value.clone()))
-                    },
-                    _ => Err(AstError::StringOutsideFunction(value.clone())),
+                Lexeme::String(value) => {
+                    match (matches!(self.peek(), Some(Lexeme::Comma)))
+                        || (matches!(self.peek_previous_by(2), Some(Lexeme::Comma)))
+                    {
+                        true => Ok(AstNode::StringLiteral(value.clone())),
+                        false => Err(AstError::StringOutsideFunction(value.clone())),
+                    }
                 },
 
                 Lexeme::LeftParenthesis => {
@@ -502,6 +504,42 @@ mod tests {
                                 )),
                             }),
                         },
+                    ],
+                }),
+            }),
+        };
+        assert_eq!(expected_ast, actual_ast);
+    }
+
+    #[test]
+    fn test_5() {
+        let code = "a + b * func(a, (b - c) * !d, \"hello\")";
+        let actual_ast = process(code);
+        let expected_ast = AstNode::BinaryOperation {
+            operation: BinaryOperationKind::Plus,
+            left: Box::new(AstNode::Identifier("a".to_string())),
+            right: Box::new(AstNode::BinaryOperation {
+                operation: BinaryOperationKind::Multiply,
+                left: Box::new(AstNode::Identifier("b".to_string())),
+                right: Box::new(AstNode::FunctionCall {
+                    name: "func".to_string(),
+                    arguments: vec![
+                        AstNode::Identifier("a".to_string()),
+                        AstNode::BinaryOperation {
+                            operation: BinaryOperationKind::Multiply,
+                            left: Box::new(AstNode::BinaryOperation {
+                                operation: BinaryOperationKind::Minus,
+                                left: Box::new(AstNode::Identifier("b".to_string())),
+                                right: Box::new(AstNode::Identifier("c".to_string())),
+                            }),
+                            right: Box::new(AstNode::UnaryOperation {
+                                operation: UnaryOperationKind::Not,
+                                expression: Box::new(AstNode::Identifier(
+                                    "d".to_string(),
+                                )),
+                            }),
+                        },
+                        AstNode::StringLiteral("hello".to_string()),
                     ],
                 }),
             }),
