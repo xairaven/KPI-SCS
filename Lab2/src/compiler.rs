@@ -1,43 +1,42 @@
 use crate::compiler::lexer::Lexer;
 use crate::compiler::syntax::SyntaxAnalyzer;
-use std::ops::Add;
 
-pub fn compile(source: &str, is_pretty: bool) -> String {
-    let mut report = String::new();
-
+pub fn compile(source: &str, is_pretty: bool) {
     // Lexical Analysis
     let tokens = tokenizer::tokenize(source);
     // Syntax Analysis
     let syntax_errors = SyntaxAnalyzer::new(&tokens).analyze();
     let is_syntax_analysis_successful = syntax_errors.is_empty();
-    let syntax_report = syntax::report(source, syntax_errors, is_pretty);
+    syntax::report(source, syntax_errors, is_pretty);
     if !is_syntax_analysis_successful {
-        return syntax_report;
-    } else {
-        report = report.add(&syntax_report);
-    };
+        return;
+    }
 
     // Making lexemes
     let lexemes_result = Lexer::new(tokens).run();
-    let lexemes = match lexer::report(lexemes_result) {
-        Ok((lexemes, lexer_report)) => {
-            report = report.add(&lexer_report);
+    let lexemes = match lexemes_result {
+        Ok(lexemes) => {
+            lexer::report_success(&lexemes);
             lexemes
         },
-        Err(lexer_report) => return report.add(&lexer_report),
+        Err(error) => {
+            lexer::report_error(error);
+            return;
+        },
     };
 
     // AST Generation
     let ast_result = ast::AstParser::new(lexemes).parse();
-    let ast = match ast::report(ast_result) {
-        Ok((ast, ast_report)) => {
-            report = report.add(&ast_report);
+    let ast = match ast_result {
+        Ok(ast) => {
+            ast::report_success(&ast);
             ast
         },
-        Err(ast_report) => return report.add(&ast_report),
+        Err(error) => {
+            ast::report_error(error);
+            return;
+        },
     };
-
-    report
 }
 
 pub mod ast;

@@ -292,19 +292,17 @@ impl AstParser {
     }
 }
 
-pub fn report(result: Result<AstNode, AstError>) -> Result<(AstNode, String), String> {
-    match result {
-        Ok(ast) => {
-            let report = format!(
-                "\n{}\n{}",
-                "Abstract-Syntax Tree generation success.".bold().green(),
-                ast.pretty_print()
-            );
+pub fn report_success(ast: &AstNode) {
+    log::warn!(
+        "{} {}.",
+        "Abstract-Syntax Tree generation",
+        "success".bold().green()
+    );
+    log::info!("{}", ast.pretty_print());
+}
 
-            Ok((ast, report))
-        },
-        Err(error) => Err(format!("\n{} {}", "AST error:".bold().red(), error)),
-    }
+pub fn report_error(error: AstError) {
+    log::error!("{} {}", "AST error:".bold().red(), error);
 }
 
 #[derive(Debug, PartialEq)]
@@ -433,25 +431,41 @@ impl AstNode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::compiler::syntax::SyntaxAnalyzer;
-    use crate::compiler::{lexer, tokenizer};
+    use crate::compiler::{ast, lexer, tokenizer};
+    use crate::logger;
+    use log::LevelFilter;
+
+    use std::sync::Once;
+
+    static INIT_LOGGER: Once = Once::new();
+
+    pub fn initialize_logger() {
+        INIT_LOGGER.call_once(|| {
+            logger::LogSettings {
+                level: LevelFilter::Info,
+                output_file: None,
+            }
+            .setup()
+            .expect("ERROR: Logging");
+        });
+    }
 
     fn process(code: &str) -> AstNode {
+        initialize_logger();
         let tokens = tokenizer::tokenize(code);
         let lexemes = lexer::Lexer::new(tokens).run();
         assert!(lexemes.is_ok());
         let lexemes = lexemes.unwrap();
         let result = AstParser::new(lexemes).parse();
-        let report = report(result);
-        assert!(report.is_ok());
-        match report {
-            Ok((ast, report)) => {
-                println!("{}", report);
+        assert!(result.is_ok());
+        match result {
+            Ok(ast) => {
+                report_success(&ast);
                 ast
             },
-            Err(report) => {
-                println!("{}", report);
-                panic!();
+            Err(error) => {
+                report_error(error);
+                panic!()
             },
         }
     }

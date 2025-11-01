@@ -157,27 +157,25 @@ impl Lexer {
     }
 }
 
-pub fn report(
-    result: Result<Vec<Lexeme>, LexerError>,
-) -> Result<(Vec<Lexeme>, String), String> {
-    match result {
-        Ok(lexemes) => {
-            let length = lexemes.len();
-            let first_line =
-                format!("\nLexer successfully produced {} lexemes.\n", length)
-                    .bold()
-                    .green()
-                    .to_string();
-            let lexemes_list = lexemes
-                .iter()
-                .map(|lexeme| format!("- {:?}", lexeme))
-                .collect::<Vec<String>>()
-                .join("\n");
-            let report = format!("{}{}\n", first_line, lexemes_list);
-            Ok((lexemes, report))
-        },
-        Err(error) => Err(format!("\n{} {}", "Lexer error:".bold().red(), error)),
-    }
+pub fn report_success(lexemes: &[Lexeme]) {
+    let length = lexemes.len();
+    let first_line = format!(
+        "Lexer {} {} lexemes.",
+        "successfully produced".bold().green(),
+        length.to_string().bold()
+    )
+    .to_string();
+    log::warn!("{}", first_line);
+    let lexemes_list = lexemes
+        .iter()
+        .map(|lexeme| format!("- {:?}", lexeme))
+        .collect::<Vec<String>>()
+        .join("\n");
+    log::info!("{}", lexemes_list);
+}
+
+pub fn report_error(error: LexerError) {
+    log::error!("{} {}", "Lexer error:".bold().red(), error);
 }
 
 #[derive(Debug)]

@@ -554,43 +554,35 @@ impl SyntaxAnalyzer {
     }
 }
 
-pub fn report(source: &str, syntax_errors: Vec<SyntaxError>, is_pretty: bool) -> String {
-    let mut result = String::new();
-
+pub fn report(source: &str, syntax_errors: Vec<SyntaxError>, is_pretty: bool) {
     let first_line = match syntax_errors.len() {
         0 => format!(
-            "{}: {}\n",
+            "{}: {}",
             "Lexical & syntax analysis".bold(),
             "OK!".bold().green()
         ),
         n => {
             format!(
-                "{}: Found {} {}.\n",
+                "{}: Found {} {}.",
                 "Lexical & syntax analysis".bold(),
                 n.to_string().red(),
                 "errors".red()
             )
         },
     };
-    result.push_str(&first_line);
+    log::warn!("{}", first_line);
 
-    result.push_str(&format!("\n{}:\n", "Code".bold().yellow()));
-    result.push_str(&format!("{}\n", source.replace("\n", " ")));
+    log::info!("{}:\n{}", "Code".bold().yellow(), source.replace("\n", " "));
 
     if !syntax_errors.is_empty() {
-        let errors = match is_pretty {
+        match is_pretty {
             true => format_errors_pretty(source, syntax_errors),
             false => format_errors(syntax_errors),
         };
-        result.push_str(&format!("{}\n", errors));
     }
-
-    result
 }
 
-fn format_errors_pretty(source: &str, syntax_errors: Vec<SyntaxError>) -> String {
-    let mut result = String::new();
-
+fn format_errors_pretty(source: &str, syntax_errors: Vec<SyntaxError>) {
     // First line: Underlines
     let length = source.len();
     let mut first_line = " ".repeat(length).add("\n");
@@ -608,7 +600,7 @@ fn format_errors_pretty(source: &str, syntax_errors: Vec<SyntaxError>) -> String
             first_line.replace_char(error.token.position.end - 1, '^');
         }
     }
-    result.push_str(&first_line);
+    log::warn!("{}", first_line);
 
     let biggest_error_length = syntax_errors
         .iter()
@@ -628,15 +620,11 @@ fn format_errors_pretty(source: &str, syntax_errors: Vec<SyntaxError>) -> String
             line.replace_char(index, '_');
         }
         line.push_str(&format!("{}\n", error.display(biggest_error_length)));
-        result.push_str(&line);
+        log::warn!("{}", first_line);
     }
-
-    result
 }
 
-fn format_errors(syntax_errors: Vec<SyntaxError>) -> String {
-    let mut result = String::new();
-
+fn format_errors(syntax_errors: Vec<SyntaxError>) {
     let biggest_error_length = syntax_errors
         .iter()
         .map(|error| error.to_string().len())
@@ -645,10 +633,8 @@ fn format_errors(syntax_errors: Vec<SyntaxError>) -> String {
         + 1;
 
     for error in syntax_errors {
-        result.push_str(&format!("{}\n", error.display(biggest_error_length)));
+        log::warn!("{}", error.display(biggest_error_length));
     }
-
-    result
 }
 
 #[cfg(test)]

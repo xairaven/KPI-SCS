@@ -1,6 +1,8 @@
 use crate::error::Error;
+use crate::logger::LogSettings;
 use crate::{compiler, io};
 use clap::Parser;
+use log::LevelFilter;
 use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
@@ -18,18 +20,30 @@ pub struct Cli {
 
     #[arg(short = 'p', action, long, help = "Pretty print output.")]
     pub pretty: bool,
+
+    #[arg(
+        short = 'l',
+        long,
+        default_value_t = LevelFilter::Warn,
+        help = "Set the logging level (Error, Warn, Info, Debug, Trace)."
+    )]
+    pub log_level: LevelFilter,
 }
 
 impl Cli {
     pub fn run() -> Result<(), Error> {
         let context = Cli::parse();
 
+        LogSettings {
+            level: context.log_level,
+            output_file: context.output_file,
+        }
+        .setup()?;
+
         let code = io::read_code_file(&context.code_file)?;
 
-        let output = compiler::compile(&code, context.pretty);
+        compiler::compile(&code, context.pretty);
 
-        let output_destination = io::define_output_destination(context.output_file);
-
-        io::write_output(&output, output_destination)
+        Ok(())
     }
 }
