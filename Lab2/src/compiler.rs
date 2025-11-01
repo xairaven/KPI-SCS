@@ -1,3 +1,4 @@
+use crate::compiler::ast::tree::AstParser;
 use crate::compiler::lexer::Lexer;
 use crate::compiler::syntax::SyntaxAnalyzer;
 
@@ -26,24 +27,26 @@ pub fn compile(source: &str, is_pretty: bool) {
     };
 
     // AST Generation
-    let ast_result = ast::AstParser::new(lexemes).parse();
+    let ast_result = AstParser::new(lexemes).parse();
     let ast = match ast_result {
         Ok(ast) => {
-            ast::report_success(&ast);
+            ast::tree::report_success(&ast);
             ast
         },
         Err(error) => {
-            ast::report_error(error);
+            ast::tree::report_error(error);
             return;
         },
     };
     // AST Parallelization
     let ast = ast.transform();
-    parallelizer::report_success(&ast);
+    ast::transform::report_success(&ast);
 }
 
-pub mod ast;
+pub mod ast {
+    pub mod transform;
+    pub mod tree;
+}
 pub mod lexer;
-pub mod parallelizer;
 pub mod syntax;
 pub mod tokenizer;

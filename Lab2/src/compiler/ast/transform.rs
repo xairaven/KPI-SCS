@@ -1,4 +1,4 @@
-use crate::compiler::ast::{
+use crate::compiler::ast::tree::{
     AbstractSyntaxTree, AstNode, BinaryOperationKind, UnaryOperationKind,
 };
 use colored::Colorize;
