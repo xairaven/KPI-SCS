@@ -2,6 +2,80 @@ use crate::compiler::lexer::Lexeme;
 use colored::Colorize;
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct AbstractSyntaxTree {
+    pub peek: AstNode,
+}
+
+impl AbstractSyntaxTree {
+    pub fn from_node(node: AstNode) -> Self {
+        Self { peek: node }
+    }
+
+    pub fn pretty_print(&self) -> String {
+        let mut tree = String::new();
+        Self::print_recursive(&self.peek, &mut tree, "".to_string(), true);
+        tree
+    }
+
+    fn print_recursive(node: &AstNode, tree: &mut String, prefix: String, is_last: bool) {
+        let connector = if is_last { "└── " } else { "├── " };
+
+        tree.push_str(&format!("{}{}", prefix.dimmed(), connector.dimmed()));
+
+        let node_text = match node {
+            AstNode::Number(n) => n.to_string().bright_blue(),
+            AstNode::Identifier(s) => s.to_string().green(),
+            AstNode::StringLiteral(s) => format!("\"{}\"", s).bright_magenta(),
+            AstNode::UnaryOperation { operation, .. } => {
+                operation.to_string().yellow().bold()
+            },
+            AstNode::BinaryOperation { operation, .. } => {
+                operation.to_string().yellow().bold()
+            },
+            AstNode::FunctionCall { name, .. } => format!("{}(...)", name).cyan().bold(),
+            AstNode::ArrayAccess { identifier, .. } => {
+                format!("{}[...]", identifier).blue().bold()
+            },
+        };
+        tree.push_str(&format!("{}\n", node_text));
+
+        let new_prefix = prefix + if is_last { "    " } else { "│   " };
+
+        match node {
+            AstNode::Number(_) | AstNode::Identifier(_) | AstNode::StringLiteral(_) => {},
+
+            AstNode::UnaryOperation { expression, .. } => {
+                Self::print_recursive(expression, tree, new_prefix, true);
+            },
+
+            AstNode::BinaryOperation { left, right, .. } => {
+                Self::print_recursive(left, tree, new_prefix.clone(), false);
+                Self::print_recursive(right, tree, new_prefix, true);
+            },
+
+            AstNode::FunctionCall { arguments, .. } => {
+                let arg_count = arguments.len();
+                for (i, arg) in arguments.iter().enumerate() {
+                    let is_last_arg = i == arg_count - 1;
+                    Self::print_recursive(arg, tree, new_prefix.clone(), is_last_arg);
+                }
+            },
+
+            AstNode::ArrayAccess {
+                identifier: _,
+                indices,
+            } => {
+                let dimensions = indices.len();
+                for (i, index) in indices.iter().enumerate() {
+                    let is_last_arg = i == dimensions - 1;
+                    Self::print_recursive(index, tree, new_prefix.clone(), is_last_arg);
+                }
+            },
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum AstNode {
     Number(f64),
     Identifier(String),
@@ -54,7 +128,7 @@ impl AstParser {
         }
     }
 
-    pub fn parse(&mut self) -> Result<AstNode, AstError> {
+    pub fn parse(&mut self) -> Result<AbstractSyntaxTree, AstError> {
         let node = self.parse_logical_or()?;
 
         if self.peek().is_some()
@@ -62,7 +136,7 @@ impl AstParser {
         {
             Err(AstError::NotExpectedLexeme(peek.clone()))
         } else {
-            Ok(node)
+            Ok(AbstractSyntaxTree { peek: node })
         }
     }
 
@@ -292,13 +366,13 @@ impl AstParser {
     }
 }
 
-pub fn report_success(ast: &AstNode) {
+pub fn report_success(tree: &AbstractSyntaxTree) {
     log::warn!(
         "{} {}.",
         "Abstract-Syntax Tree generation",
         "success".bold().green()
     );
-    log::info!("{}", ast.pretty_print());
+    log::info!("{}", tree.pretty_print());
 }
 
 pub fn report_error(error: AstError) {
@@ -363,71 +437,6 @@ impl std::fmt::Display for BinaryOperationKind {
     }
 }
 
-impl AstNode {
-    pub fn pretty_print(&self) -> String {
-        let mut tree = String::new();
-        self.print_recursive(&mut tree, "".to_string(), true);
-        tree
-    }
-
-    fn print_recursive(&self, tree: &mut String, prefix: String, is_last: bool) {
-        let connector = if is_last { "└── " } else { "├── " };
-
-        tree.push_str(&format!("{}{}", prefix.dimmed(), connector.dimmed()));
-
-        let node_text = match self {
-            AstNode::Number(n) => n.to_string().bright_blue(),
-            AstNode::Identifier(s) => s.to_string().green(),
-            AstNode::StringLiteral(s) => format!("\"{}\"", s).bright_magenta(),
-            AstNode::UnaryOperation { operation, .. } => {
-                operation.to_string().yellow().bold()
-            },
-            AstNode::BinaryOperation { operation, .. } => {
-                operation.to_string().yellow().bold()
-            },
-            AstNode::FunctionCall { name, .. } => format!("{}(...)", name).cyan().bold(),
-            AstNode::ArrayAccess { identifier, .. } => {
-                format!("{}[...]", identifier).blue().bold()
-            },
-        };
-        tree.push_str(&format!("{}\n", node_text));
-
-        let new_prefix = prefix + if is_last { "    " } else { "│   " };
-
-        match self {
-            AstNode::Number(_) | AstNode::Identifier(_) | AstNode::StringLiteral(_) => {},
-
-            AstNode::UnaryOperation { expression, .. } => {
-                expression.print_recursive(tree, new_prefix, true);
-            },
-
-            AstNode::BinaryOperation { left, right, .. } => {
-                left.print_recursive(tree, new_prefix.clone(), false);
-                right.print_recursive(tree, new_prefix, true);
-            },
-
-            AstNode::FunctionCall { arguments, .. } => {
-                let arg_count = arguments.len();
-                for (i, arg) in arguments.iter().enumerate() {
-                    let is_last_arg = i == arg_count - 1;
-                    arg.print_recursive(tree, new_prefix.clone(), is_last_arg);
-                }
-            },
-
-            AstNode::ArrayAccess {
-                identifier: _,
-                indices,
-            } => {
-                let dimensions = indices.len();
-                for (i, index) in indices.iter().enumerate() {
-                    let is_last_arg = i == dimensions - 1;
-                    index.print_recursive(tree, new_prefix.clone(), is_last_arg);
-                }
-            },
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -450,7 +459,7 @@ mod tests {
         });
     }
 
-    fn process(code: &str) -> AstNode {
+    fn process(code: &str) -> AbstractSyntaxTree {
         initialize_logger();
         let tokens = tokenizer::tokenize(code);
         let lexemes = lexer::Lexer::new(tokens).run();
@@ -483,7 +492,7 @@ mod tests {
                 right: Box::new(AstNode::Identifier("c".to_string())),
             }),
         };
-        assert_eq!(expected_ast, actual_ast);
+        assert_eq!(AbstractSyntaxTree::from_node(expected_ast), actual_ast);
     }
 
     #[test]
@@ -518,7 +527,7 @@ mod tests {
                 }),
             }),
         };
-        assert_eq!(expected_ast, actual_ast);
+        assert_eq!(AbstractSyntaxTree::from_node(expected_ast), actual_ast);
     }
 
     #[test]
@@ -566,7 +575,7 @@ mod tests {
                 }),
             }),
         };
-        assert_eq!(expected_ast, actual_ast);
+        assert_eq!(AbstractSyntaxTree::from_node(expected_ast), actual_ast);
     }
 
     #[test]
@@ -602,7 +611,7 @@ mod tests {
                 }),
             }),
         };
-        assert_eq!(expected_ast, actual_ast);
+        assert_eq!(AbstractSyntaxTree::from_node(expected_ast), actual_ast);
     }
 
     #[test]
@@ -640,7 +649,7 @@ mod tests {
                 }),
             }),
         };
-        assert_eq!(expected_ast, actual_ast);
+        assert_eq!(AbstractSyntaxTree::from_node(expected_ast), actual_ast);
     }
 
     #[test]
@@ -693,6 +702,6 @@ mod tests {
                 right: Box::new(AstNode::Identifier("s".to_string())),
             }),
         };
-        assert_eq!(expected_ast, actual_ast);
+        assert_eq!(AbstractSyntaxTree::from_node(expected_ast), actual_ast);
     }
 }
