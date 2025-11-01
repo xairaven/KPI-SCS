@@ -10,7 +10,30 @@ pub struct LogSettings {
     pub output_file: Option<PathBuf>,
 }
 
+impl Default for LogSettings {
+    fn default() -> Self {
+        Self {
+            level: LevelFilter::Warn,
+            output_file: None,
+        }
+    }
+}
+
 impl LogSettings {
+    pub fn with_level(self, level: LevelFilter) -> Self {
+        Self {
+            level,
+            output_file: self.output_file,
+        }
+    }
+
+    pub fn with_output_file(self, output_file: Option<PathBuf>) -> Self {
+        Self {
+            level: self.level,
+            output_file,
+        }
+    }
+
     pub fn setup(&self) -> Result<(), Error> {
         if self.level.eq(&LevelFilter::Off) {
             return Ok(());

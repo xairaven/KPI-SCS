@@ -34,11 +34,10 @@ impl Cli {
     pub fn run() -> Result<(), Error> {
         let context = Cli::parse();
 
-        LogSettings {
-            level: context.log_level,
-            output_file: context.output_file,
-        }
-        .setup()?;
+        LogSettings::default()
+            .with_output_file(context.output_file)
+            .with_level(context.log_level)
+            .setup()?;
 
         let code = io::read_code_file(&context.code_file)?;
 

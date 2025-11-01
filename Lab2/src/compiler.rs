@@ -37,9 +37,13 @@ pub fn compile(source: &str, is_pretty: bool) {
             return;
         },
     };
+    // AST Parallelization
+    let ast = ast.transform();
+    parallelizer::report_success(&ast);
 }
 
 pub mod ast;
 pub mod lexer;
+pub mod parallelizer;
 pub mod syntax;
 pub mod tokenizer;
