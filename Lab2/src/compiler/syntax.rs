@@ -2,7 +2,6 @@ use crate::compiler::tokenizer::{Token, TokenType};
 use crate::utils::StringExtension;
 use colored::Colorize;
 use std::collections::VecDeque;
-use std::ops::Add;
 
 #[derive(Debug)]
 pub struct SyntaxAnalyzer {
@@ -572,7 +571,7 @@ pub fn report(source: &str, syntax_errors: Vec<SyntaxError>, is_pretty: bool) {
     };
     log::warn!("{}", first_line);
 
-    log::info!("{}:\n{}", "Code".bold().yellow(), source.replace("\n", " "));
+    log::warn!("{}:\n{}", "Code".bold().yellow(), source.replace("\n", " "));
 
     if !syntax_errors.is_empty() {
         match is_pretty {
@@ -585,7 +584,7 @@ pub fn report(source: &str, syntax_errors: Vec<SyntaxError>, is_pretty: bool) {
 fn format_errors_pretty(source: &str, syntax_errors: Vec<SyntaxError>) {
     // First line: Underlines
     let length = source.len();
-    let mut first_line = " ".repeat(length).add("\n");
+    let mut first_line = " ".repeat(length);
     for error in &syntax_errors {
         let underline_length = error.token.position.end - error.token.position.start;
         if underline_length == 1 {
@@ -619,8 +618,8 @@ fn format_errors_pretty(source: &str, syntax_errors: Vec<SyntaxError>) {
         for index in (error.token.position.start + 1)..(length + 1) {
             line.replace_char(index, '_');
         }
-        line.push_str(&format!("{}\n", error.display(biggest_error_length)));
-        log::warn!("{}", first_line);
+        line.push_str(&error.display(biggest_error_length));
+        log::warn!("{}", line);
     }
 }
 
