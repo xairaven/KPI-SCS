@@ -440,7 +440,7 @@ impl std::fmt::Display for BinaryOperationKind {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::compiler::{ast, lexer, tokenizer};
+    use crate::compiler::{lexer, tokenizer};
     use crate::logger;
     use log::LevelFilter;
 
