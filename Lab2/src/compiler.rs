@@ -41,9 +41,22 @@ pub fn compile(source: &str, is_pretty: bool) {
     // AST Parallelization
     let ast = ast.transform();
     ast::transform::report_success(&ast);
+    // AST Balancing
+    let ast_result = ast.balance();
+    let _ast = match ast_result {
+        Ok(ast) => {
+            ast::balancer::report_success(&ast);
+            ast
+        },
+        Err(error) => {
+            ast::balancer::report_error(error);
+            return;
+        },
+    };
 }
 
 pub mod ast {
+    pub mod balancer;
     pub mod transform;
     pub mod tree;
 }
