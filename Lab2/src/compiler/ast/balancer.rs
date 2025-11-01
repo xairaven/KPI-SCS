@@ -154,7 +154,6 @@ impl AbstractSyntaxTree {
                     right: Box::new(right),
                 };
 
-                // (він буде операндом для наступного, вищого рівня)
                 // .. and put the new node at the back of the queue
                 // (it will be an operand for the next, higher level)
                 queue.push_back(new_node);
@@ -212,4 +211,139 @@ pub fn report_success(tree: &AbstractSyntaxTree) {
 
 pub fn report_error(error: BalancedAstError) {
     log::error!("{} {}", "Balanced AST error:".bold().red(), error);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::compiler::ast::tree::AstParser;
+    use crate::compiler::lexer::Lexer;
+    use crate::compiler::syntax::SyntaxAnalyzer;
+    use crate::compiler::{ast, lexer, tokenizer};
+
+    fn process(code: &str) -> Result<AbstractSyntaxTree, ()> {
+        let tokens = tokenizer::tokenize(code);
+        // Syntax Analysis
+        let syntax_errors = SyntaxAnalyzer::new(&tokens).analyze();
+        let is_syntax_analysis_successful = syntax_errors.is_empty();
+        if !is_syntax_analysis_successful {
+            return Err(());
+        }
+        // Making lexemes
+        let lexemes_result = Lexer::new(tokens).run();
+        let lexemes = match lexemes_result {
+            Ok(lexemes) => lexemes,
+            Err(error) => {
+                lexer::report_error(error);
+                return Err(());
+            },
+        };
+
+        // AST Generation
+        let ast_result = AstParser::new(lexemes).parse();
+        let ast = match ast_result {
+            Ok(ast) => ast,
+            Err(error) => {
+                ast::tree::report_error(error);
+                return Err(());
+            },
+        };
+        // AST Parallelization
+        let ast = ast.transform();
+        ast::transform::report_success(&ast);
+        // AST Balancing
+        let ast_result = ast.balance();
+        let ast = match ast_result {
+            Ok(ast) => ast,
+            Err(error) => {
+                report_error(error);
+                return Err(());
+            },
+        };
+        Ok(ast)
+    }
+
+    #[test]
+    fn test_1() {
+        let code = "a+b+c+d+e+f+g+h";
+        let balanced_ast = process(code);
+        assert!(balanced_ast.is_ok());
+
+        let actual_ast = balanced_ast.unwrap();
+        let expected_ast = AbstractSyntaxTree::from_node(AstNode::BinaryOperation {
+            operation: BinaryOperationKind::Plus,
+            left: Box::new(AstNode::BinaryOperation {
+                operation: BinaryOperationKind::Plus,
+                left: Box::new(AstNode::BinaryOperation {
+                    operation: BinaryOperationKind::Plus,
+                    left: Box::new(AstNode::Identifier("a".to_string())),
+                    right: Box::new(AstNode::Identifier("b".to_string())),
+                }),
+                right: Box::new(AstNode::BinaryOperation {
+                    operation: BinaryOperationKind::Plus,
+                    left: Box::new(AstNode::Identifier("c".to_string())),
+                    right: Box::new(AstNode::Identifier("d".to_string())),
+                }),
+            }),
+            right: Box::new(AstNode::BinaryOperation {
+                operation: BinaryOperationKind::Plus,
+                left: Box::new(AstNode::BinaryOperation {
+                    operation: BinaryOperationKind::Plus,
+                    left: Box::new(AstNode::Identifier("e".to_string())),
+                    right: Box::new(AstNode::Identifier("f".to_string())),
+                }),
+                right: Box::new(AstNode::BinaryOperation {
+                    operation: BinaryOperationKind::Plus,
+                    left: Box::new(AstNode::Identifier("g".to_string())),
+                    right: Box::new(AstNode::Identifier("h".to_string())),
+                }),
+            }),
+        });
+
+        assert_eq!(actual_ast, expected_ast);
+    }
+
+    #[test]
+    fn test_2() {
+        let code = "a+b+c+d+e+f+g+h+i";
+        let balanced_ast = process(code);
+        assert!(balanced_ast.is_ok());
+
+        let actual_ast = balanced_ast.unwrap();
+        let expected_ast = AbstractSyntaxTree::from_node(AstNode::BinaryOperation {
+            operation: BinaryOperationKind::Plus,
+            left: Box::new(AstNode::BinaryOperation {
+                operation: BinaryOperationKind::Plus,
+                left: Box::new(AstNode::BinaryOperation {
+                    operation: BinaryOperationKind::Plus,
+                    left: Box::new(AstNode::BinaryOperation {
+                        operation: BinaryOperationKind::Plus,
+                        left: Box::new(AstNode::Identifier("a".to_string())),
+                        right: Box::new(AstNode::Identifier("b".to_string())),
+                    }),
+                    right: Box::new(AstNode::BinaryOperation {
+                        operation: BinaryOperationKind::Plus,
+                        left: Box::new(AstNode::Identifier("c".to_string())),
+                        right: Box::new(AstNode::Identifier("d".to_string())),
+                    }),
+                }),
+                right: Box::new(AstNode::BinaryOperation {
+                    operation: BinaryOperationKind::Plus,
+                    left: Box::new(AstNode::BinaryOperation {
+                        operation: BinaryOperationKind::Plus,
+                        left: Box::new(AstNode::Identifier("e".to_string())),
+                        right: Box::new(AstNode::Identifier("f".to_string())),
+                    }),
+                    right: Box::new(AstNode::BinaryOperation {
+                        operation: BinaryOperationKind::Plus,
+                        left: Box::new(AstNode::Identifier("g".to_string())),
+                        right: Box::new(AstNode::Identifier("h".to_string())),
+                    }),
+                }),
+            }),
+            right: Box::new(AstNode::Identifier("i".to_string())),
+        });
+
+        assert_eq!(actual_ast, expected_ast);
+    }
 }
