@@ -39,14 +39,32 @@ pub fn compile(source: &str, is_pretty: bool) {
         },
     };
     // AST Math Optimization
-    let ast = ast.compute();
-    ast::math::report_success(&ast);
+    let ast_result = ast.compute();
+    let ast = match ast_result {
+        Ok(ast) => {
+            ast::math::report_success(&ast);
+            ast
+        },
+        Err(error) => {
+            ast::math::report_error(error);
+            return;
+        },
+    };
     if ast::math::check_finalization(&ast) {
         return;
     }
     // AST Parallelization
-    let ast = ast.transform();
-    ast::transform::report_success(&ast);
+    let ast_result = ast.transform();
+    let ast = match ast_result {
+        Ok(ast) => {
+            ast::transform::report_success(&ast);
+            ast
+        },
+        Err(error) => {
+            ast::transform::report_error(error);
+            return;
+        },
+    };
     // AST Balancing
     let ast_result = ast.balance();
     let _ast = match ast_result {

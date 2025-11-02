@@ -1,15 +1,17 @@
-use crate::compiler::ast::tree::{AbstractSyntaxTree, AstNode, BinaryOperationKind};
+use crate::compiler::ast::tree::{
+    AbstractSyntaxTree, AstError, AstNode, BinaryOperationKind,
+};
 use colored::Colorize;
 use std::collections::VecDeque;
 
 impl AbstractSyntaxTree {
-    pub fn balance(self) -> Result<Self, BalancedAstError> {
+    pub fn balance(self) -> Result<Self, AstError> {
         let peek = Self::balance_tree(self.peek)?;
 
         Ok(Self::from_node(peek))
     }
 
-    pub fn balance_tree(node: AstNode) -> Result<AstNode, BalancedAstError> {
+    pub fn balance_tree(node: AstNode) -> Result<AstNode, AstError> {
         match node {
             // Base cases, already balanced.
             AstNode::Number(_) | AstNode::Identifier(_) | AstNode::StringLiteral(_) => {
@@ -125,9 +127,9 @@ impl AbstractSyntaxTree {
     /// (or a similar balanced structure).
     fn build_balanced_tree(
         operands: Vec<AstNode>, op_kind: BinaryOperationKind,
-    ) -> Result<AstNode, BalancedAstError> {
+    ) -> Result<AstNode, AstError> {
         if operands.is_empty() {
-            return Err(BalancedAstError::CannotBuildEmptyTree);
+            return Err(AstError::CannotBuildEmptyTree);
         }
 
         // Making a queue from the list of operands
@@ -140,12 +142,8 @@ impl AbstractSyntaxTree {
             // Process the current level of the tree:
             for _ in 0..(level_size / 2) {
                 // Take two nodes from the front of the queue...
-                let left = queue
-                    .pop_front()
-                    .ok_or(BalancedAstError::FailedPopFromQueue)?;
-                let right = queue
-                    .pop_front()
-                    .ok_or(BalancedAstError::FailedPopFromQueue)?;
+                let left = queue.pop_front().ok_or(AstError::FailedPopFromQueue)?;
+                let right = queue.pop_front().ok_or(AstError::FailedPopFromQueue)?;
 
                 // ...create a new binary operation node combining them...
                 let new_node = AstNode::BinaryOperation {
@@ -164,39 +162,15 @@ impl AbstractSyntaxTree {
                 // ...one node remains at the front of the queue.
                 // We simply move it to the back,
                 // so it can participate in the next iteration (next level).
-                let odd_one_out = queue
-                    .pop_front()
-                    .ok_or(BalancedAstError::FailedPopFromQueue)?;
+                let odd_one_out =
+                    queue.pop_front().ok_or(AstError::FailedPopFromQueue)?;
                 queue.push_back(odd_one_out);
             }
         }
 
         // When only one node remains in the queue,
         // it is the root of the balanced tree.
-        queue
-            .pop_front()
-            .ok_or(BalancedAstError::FailedPopFromQueue)
-    }
-}
-
-#[derive(Debug, PartialEq)]
-pub enum BalancedAstError {
-    CannotBuildEmptyTree,
-    FailedPopFromQueue,
-}
-
-impl std::fmt::Display for BalancedAstError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let text = match self {
-            Self::CannotBuildEmptyTree => {
-                "Cannot build a balanced tree from zero operands"
-            },
-            Self::FailedPopFromQueue => {
-                "Failed to pop node from the queue during tree construction"
-            },
-        };
-
-        write!(f, "{}", text)
+        queue.pop_front().ok_or(AstError::FailedPopFromQueue)
     }
 }
 
@@ -209,7 +183,7 @@ pub fn report_success(tree: &AbstractSyntaxTree) {
     log::info!("{}", tree.pretty_print());
 }
 
-pub fn report_error(error: BalancedAstError) {
+pub fn report_error(error: AstError) {
     log::error!("{} {}", "Balanced AST error:".bold().red(), error);
 }
 
@@ -251,8 +225,24 @@ mod tests {
                 return Err(());
             },
         };
+        // AST Computing
+        let ast_result = ast.compute();
+        let ast = match ast_result {
+            Ok(ast) => ast,
+            Err(error) => {
+                ast::math::report_error(error);
+                return Err(());
+            },
+        };
         // AST Parallelization
-        let ast = ast.transform();
+        let ast_result = ast.transform();
+        let ast = match ast_result {
+            Ok(ast) => ast,
+            Err(error) => {
+                ast::transform::report_error(error);
+                return Err(());
+            },
+        };
         ast::transform::report_success(&ast);
         // AST Balancing
         let ast_result = ast.balance();

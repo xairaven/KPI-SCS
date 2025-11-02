@@ -23,7 +23,7 @@ impl AbstractSyntaxTree {
         tree.push_str(&format!("{}{}", prefix.dimmed(), connector.dimmed()));
 
         let node_text = match node {
-            AstNode::Number(n) => n.to_string().bright_blue(),
+            AstNode::Number(n) => format!("{n:.3}").bright_blue(),
             AstNode::Identifier(s) => s.to_string().green(),
             AstNode::StringLiteral(s) => format!("\"{}\"", s).bright_magenta(),
             AstNode::UnaryOperation { operation, .. } => {
@@ -376,6 +376,10 @@ pub enum AstError {
     NotExpectedLexeme(Lexeme),
     StringOutsideFunction(String),
     UnreachableLexeme(Lexeme),
+
+    CannotBuildEmptyTree,
+    FailedPopFromQueue,
+    DivisionByZero,
 }
 
 impl std::fmt::Display for AstError {
@@ -397,6 +401,14 @@ impl std::fmt::Display for AstError {
             Self::UnreachableLexeme(lexeme) => {
                 &format!("Unreachable lexeme \"{}\".", lexeme.display_type())
             },
+
+            Self::CannotBuildEmptyTree => {
+                "Cannot build a balanced tree from zero operands"
+            },
+            Self::FailedPopFromQueue => {
+                "Failed to pop node from the queue during tree construction"
+            },
+            Self::DivisionByZero => "Division by zero",
         };
 
         write!(f, "{}", text)
