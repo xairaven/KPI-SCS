@@ -216,7 +216,9 @@ pub fn report_error(error: BalancedAstError) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::compiler::ast::tree::AstNode::UnaryOperation;
+    use crate::compiler::ast::tree::AstNode::{
+        BinaryOperation, Identifier, Number, UnaryOperation,
+    };
     use crate::compiler::ast::tree::{AstParser, UnaryOperationKind};
     use crate::compiler::lexer::Lexer;
     use crate::compiler::syntax::SyntaxAnalyzer;
@@ -273,30 +275,30 @@ mod tests {
         let actual_ast = balanced_ast.unwrap();
         let expected_ast = AbstractSyntaxTree::from_node(AstNode::BinaryOperation {
             operation: BinaryOperationKind::Plus,
-            left: Box::new(AstNode::BinaryOperation {
+            left: Box::new(BinaryOperation {
                 operation: BinaryOperationKind::Plus,
-                left: Box::new(AstNode::BinaryOperation {
+                left: Box::new(BinaryOperation {
                     operation: BinaryOperationKind::Plus,
-                    left: Box::new(AstNode::Identifier("a".to_string())),
-                    right: Box::new(AstNode::Identifier("b".to_string())),
+                    left: Box::new(Identifier("a".to_string())),
+                    right: Box::new(Identifier("b".to_string())),
                 }),
-                right: Box::new(AstNode::BinaryOperation {
+                right: Box::new(BinaryOperation {
                     operation: BinaryOperationKind::Plus,
-                    left: Box::new(AstNode::Identifier("c".to_string())),
-                    right: Box::new(AstNode::Identifier("d".to_string())),
+                    left: Box::new(Identifier("c".to_string())),
+                    right: Box::new(Identifier("d".to_string())),
                 }),
             }),
-            right: Box::new(AstNode::BinaryOperation {
+            right: Box::new(BinaryOperation {
                 operation: BinaryOperationKind::Plus,
-                left: Box::new(AstNode::BinaryOperation {
+                left: Box::new(BinaryOperation {
                     operation: BinaryOperationKind::Plus,
-                    left: Box::new(AstNode::Identifier("e".to_string())),
-                    right: Box::new(AstNode::Identifier("f".to_string())),
+                    left: Box::new(Identifier("e".to_string())),
+                    right: Box::new(Identifier("f".to_string())),
                 }),
-                right: Box::new(AstNode::BinaryOperation {
+                right: Box::new(BinaryOperation {
                     operation: BinaryOperationKind::Plus,
-                    left: Box::new(AstNode::Identifier("g".to_string())),
-                    right: Box::new(AstNode::Identifier("h".to_string())),
+                    left: Box::new(Identifier("g".to_string())),
+                    right: Box::new(Identifier("h".to_string())),
                 }),
             }),
         });
@@ -311,38 +313,38 @@ mod tests {
         assert!(balanced_ast.is_ok());
 
         let actual_ast = balanced_ast.unwrap();
-        let expected_ast = AbstractSyntaxTree::from_node(AstNode::BinaryOperation {
+        let expected_ast = AbstractSyntaxTree::from_node(BinaryOperation {
             operation: BinaryOperationKind::Plus,
-            left: Box::new(AstNode::BinaryOperation {
+            left: Box::new(BinaryOperation {
                 operation: BinaryOperationKind::Plus,
-                left: Box::new(AstNode::BinaryOperation {
+                left: Box::new(BinaryOperation {
                     operation: BinaryOperationKind::Plus,
-                    left: Box::new(AstNode::BinaryOperation {
+                    left: Box::new(BinaryOperation {
                         operation: BinaryOperationKind::Plus,
-                        left: Box::new(AstNode::Identifier("a".to_string())),
-                        right: Box::new(AstNode::Identifier("b".to_string())),
+                        left: Box::new(Identifier("a".to_string())),
+                        right: Box::new(Identifier("b".to_string())),
                     }),
-                    right: Box::new(AstNode::BinaryOperation {
+                    right: Box::new(BinaryOperation {
                         operation: BinaryOperationKind::Plus,
-                        left: Box::new(AstNode::Identifier("c".to_string())),
-                        right: Box::new(AstNode::Identifier("d".to_string())),
+                        left: Box::new(Identifier("c".to_string())),
+                        right: Box::new(Identifier("d".to_string())),
                     }),
                 }),
-                right: Box::new(AstNode::BinaryOperation {
+                right: Box::new(BinaryOperation {
                     operation: BinaryOperationKind::Plus,
-                    left: Box::new(AstNode::BinaryOperation {
+                    left: Box::new(BinaryOperation {
                         operation: BinaryOperationKind::Plus,
-                        left: Box::new(AstNode::Identifier("e".to_string())),
-                        right: Box::new(AstNode::Identifier("f".to_string())),
+                        left: Box::new(Identifier("e".to_string())),
+                        right: Box::new(Identifier("f".to_string())),
                     }),
-                    right: Box::new(AstNode::BinaryOperation {
+                    right: Box::new(BinaryOperation {
                         operation: BinaryOperationKind::Plus,
-                        left: Box::new(AstNode::Identifier("g".to_string())),
-                        right: Box::new(AstNode::Identifier("h".to_string())),
+                        left: Box::new(Identifier("g".to_string())),
+                        right: Box::new(Identifier("h".to_string())),
                     }),
                 }),
             }),
-            right: Box::new(AstNode::Identifier("i".to_string())),
+            right: Box::new(Identifier("i".to_string())),
         });
 
         assert_eq!(actual_ast, expected_ast);
@@ -355,61 +357,61 @@ mod tests {
         assert!(balanced_ast.is_ok());
 
         let actual_ast = balanced_ast.unwrap();
-        let expected_ast = AbstractSyntaxTree::from_node(AstNode::BinaryOperation {
+        let expected_ast = AbstractSyntaxTree::from_node(BinaryOperation {
             operation: BinaryOperationKind::Plus,
-            left: Box::new(AstNode::BinaryOperation {
+            left: Box::new(BinaryOperation {
                 operation: BinaryOperationKind::Plus,
-                left: Box::new(AstNode::BinaryOperation {
+                left: Box::new(BinaryOperation {
                     operation: BinaryOperationKind::Plus,
-                    left: Box::new(AstNode::BinaryOperation {
+                    left: Box::new(BinaryOperation {
                         operation: BinaryOperationKind::Plus,
-                        left: Box::new(AstNode::Identifier("a".to_string())),
+                        left: Box::new(Identifier("a".to_string())),
                         right: Box::new(UnaryOperation {
                             operation: UnaryOperationKind::Minus,
-                            expression: Box::new(AstNode::Identifier("b".to_string())),
+                            expression: Box::new(Identifier("b".to_string())),
                         }),
                     }),
-                    right: Box::new(AstNode::BinaryOperation {
+                    right: Box::new(BinaryOperation {
                         operation: BinaryOperationKind::Plus,
                         left: Box::new(UnaryOperation {
                             operation: UnaryOperationKind::Minus,
-                            expression: Box::new(AstNode::Identifier("c".to_string())),
+                            expression: Box::new(Identifier("c".to_string())),
                         }),
                         right: Box::new(UnaryOperation {
                             operation: UnaryOperationKind::Minus,
-                            expression: Box::new(AstNode::Identifier("d".to_string())),
+                            expression: Box::new(Identifier("d".to_string())),
                         }),
                     }),
                 }),
-                right: Box::new(AstNode::BinaryOperation {
+                right: Box::new(BinaryOperation {
                     operation: BinaryOperationKind::Plus,
-                    left: Box::new(AstNode::BinaryOperation {
+                    left: Box::new(BinaryOperation {
                         operation: BinaryOperationKind::Plus,
                         left: Box::new(UnaryOperation {
                             operation: UnaryOperationKind::Minus,
-                            expression: Box::new(AstNode::Identifier("e".to_string())),
+                            expression: Box::new(Identifier("e".to_string())),
                         }),
                         right: Box::new(UnaryOperation {
                             operation: UnaryOperationKind::Minus,
-                            expression: Box::new(AstNode::Identifier("f".to_string())),
+                            expression: Box::new(Identifier("f".to_string())),
                         }),
                     }),
-                    right: Box::new(AstNode::BinaryOperation {
+                    right: Box::new(BinaryOperation {
                         operation: BinaryOperationKind::Plus,
                         left: Box::new(UnaryOperation {
                             operation: UnaryOperationKind::Minus,
-                            expression: Box::new(AstNode::Identifier("g".to_string())),
+                            expression: Box::new(Identifier("g".to_string())),
                         }),
                         right: Box::new(UnaryOperation {
                             operation: UnaryOperationKind::Minus,
-                            expression: Box::new(AstNode::Identifier("h".to_string())),
+                            expression: Box::new(Identifier("h".to_string())),
                         }),
                     }),
                 }),
             }),
             right: Box::new(UnaryOperation {
                 operation: UnaryOperationKind::Minus,
-                expression: Box::new(AstNode::Identifier("i".to_string())),
+                expression: Box::new(Identifier("i".to_string())),
             }),
         });
 
@@ -425,70 +427,182 @@ mod tests {
         let actual_ast = balanced_ast.unwrap();
         let expected_ast = AbstractSyntaxTree::from_node(AstNode::BinaryOperation {
             operation: BinaryOperationKind::Multiply,
-            left: Box::new(AstNode::BinaryOperation {
+            left: Box::new(BinaryOperation {
                 operation: BinaryOperationKind::Multiply,
-                left: Box::new(AstNode::BinaryOperation {
+                left: Box::new(BinaryOperation {
                     operation: BinaryOperationKind::Multiply,
-                    left: Box::new(AstNode::BinaryOperation {
+                    left: Box::new(BinaryOperation {
                         operation: BinaryOperationKind::Multiply,
-                        left: Box::new(AstNode::Identifier("a".to_string())),
-                        right: Box::new(AstNode::BinaryOperation {
+                        left: Box::new(Identifier("a".to_string())),
+                        right: Box::new(BinaryOperation {
                             operation: BinaryOperationKind::Divide,
-                            left: Box::new(AstNode::Number(1.0)),
-                            right: Box::new(AstNode::Identifier("b".to_string())),
+                            left: Box::new(Number(1.0)),
+                            right: Box::new(Identifier("b".to_string())),
                         }),
                     }),
-                    right: Box::new(AstNode::BinaryOperation {
+                    right: Box::new(BinaryOperation {
                         operation: BinaryOperationKind::Multiply,
-                        left: Box::new(AstNode::BinaryOperation {
+                        left: Box::new(BinaryOperation {
                             operation: BinaryOperationKind::Divide,
-                            left: Box::new(AstNode::Number(1.0)),
-                            right: Box::new(AstNode::Identifier("c".to_string())),
+                            left: Box::new(Number(1.0)),
+                            right: Box::new(Identifier("c".to_string())),
                         }),
-                        right: Box::new(AstNode::BinaryOperation {
+                        right: Box::new(BinaryOperation {
                             operation: BinaryOperationKind::Divide,
-                            left: Box::new(AstNode::Number(1.0)),
-                            right: Box::new(AstNode::Identifier("d".to_string())),
+                            left: Box::new(Number(1.0)),
+                            right: Box::new(Identifier("d".to_string())),
                         }),
                     }),
                 }),
-                right: Box::new(AstNode::BinaryOperation {
+                right: Box::new(BinaryOperation {
                     operation: BinaryOperationKind::Multiply,
-                    left: Box::new(AstNode::BinaryOperation {
+                    left: Box::new(BinaryOperation {
                         operation: BinaryOperationKind::Multiply,
-                        left: Box::new(AstNode::BinaryOperation {
+                        left: Box::new(BinaryOperation {
                             operation: BinaryOperationKind::Divide,
-                            left: Box::new(AstNode::Number(1.0)),
-                            right: Box::new(AstNode::Identifier("e".to_string())),
+                            left: Box::new(Number(1.0)),
+                            right: Box::new(Identifier("e".to_string())),
                         }),
-                        right: Box::new(AstNode::BinaryOperation {
+                        right: Box::new(BinaryOperation {
                             operation: BinaryOperationKind::Divide,
-                            left: Box::new(AstNode::Number(1.0)),
-                            right: Box::new(AstNode::Identifier("f".to_string())),
+                            left: Box::new(Number(1.0)),
+                            right: Box::new(Identifier("f".to_string())),
                         }),
                     }),
-                    right: Box::new(AstNode::BinaryOperation {
+                    right: Box::new(BinaryOperation {
                         operation: BinaryOperationKind::Multiply,
-                        left: Box::new(AstNode::BinaryOperation {
+                        left: Box::new(BinaryOperation {
                             operation: BinaryOperationKind::Divide,
-                            left: Box::new(AstNode::Number(1.0)),
-                            right: Box::new(AstNode::Identifier("g".to_string())),
+                            left: Box::new(Number(1.0)),
+                            right: Box::new(Identifier("g".to_string())),
                         }),
-                        right: Box::new(AstNode::BinaryOperation {
+                        right: Box::new(BinaryOperation {
                             operation: BinaryOperationKind::Divide,
-                            left: Box::new(AstNode::Number(1.0)),
-                            right: Box::new(AstNode::Identifier("h".to_string())),
+                            left: Box::new(Number(1.0)),
+                            right: Box::new(Identifier("h".to_string())),
                         }),
                     }),
                 }),
             }),
-            right: Box::new(AstNode::BinaryOperation {
+            right: Box::new(BinaryOperation {
                 operation: BinaryOperationKind::Divide,
-                left: Box::new(AstNode::Number(1.0)),
-                right: Box::new(AstNode::Identifier("i".to_string())),
+                left: Box::new(Number(1.0)),
+                right: Box::new(Identifier("i".to_string())),
             }),
         });
 
+        assert_eq!(actual_ast, expected_ast);
+    }
+
+    #[test]
+    fn test_5() {
+        let code = "a*(b-4) - 2*b*c - c*d - a*c*d/e/f/g - g-h-i-j";
+        let balanced_ast = process(code);
+        assert!(balanced_ast.is_ok());
+
+        let actual_ast = balanced_ast.unwrap();
+        let expected_ast = AbstractSyntaxTree::from_node(BinaryOperation {
+            operation: BinaryOperationKind::Plus,
+            left: Box::new(BinaryOperation {
+                operation: BinaryOperationKind::Plus,
+                left: Box::new(BinaryOperation {
+                    operation: BinaryOperationKind::Plus,
+                    left: Box::new(BinaryOperation {
+                        operation: BinaryOperationKind::Multiply,
+                        left: Box::new(Identifier("a".to_string())),
+                        right: Box::new(BinaryOperation {
+                            operation: BinaryOperationKind::Plus,
+                            left: Box::new(Identifier("b".to_string())),
+                            right: Box::new(Number(-4.0)),
+                        }),
+                    }),
+                    right: Box::new(UnaryOperation {
+                        operation: UnaryOperationKind::Minus,
+                        expression: Box::new(BinaryOperation {
+                            operation: BinaryOperationKind::Multiply,
+                            left: Box::new(BinaryOperation {
+                                operation: BinaryOperationKind::Multiply,
+                                left: Box::new(Number(2.0)),
+                                right: Box::new(Identifier("b".to_string())),
+                            }),
+                            right: Box::new(Identifier("c".to_string())),
+                        }),
+                    }),
+                }),
+                right: Box::new(BinaryOperation {
+                    operation: BinaryOperationKind::Plus,
+                    left: Box::new(UnaryOperation {
+                        operation: UnaryOperationKind::Minus,
+                        expression: Box::new(BinaryOperation {
+                            operation: BinaryOperationKind::Multiply,
+                            left: Box::new(Identifier("c".to_string())),
+                            right: Box::new(Identifier("d".to_string())),
+                        }),
+                    }),
+                    right: Box::new(UnaryOperation {
+                        operation: UnaryOperationKind::Minus,
+                        expression: Box::new(BinaryOperation {
+                            operation: BinaryOperationKind::Multiply,
+                            left: Box::new(BinaryOperation {
+                                operation: BinaryOperationKind::Multiply,
+                                left: Box::new(BinaryOperation {
+                                    operation: BinaryOperationKind::Multiply,
+                                    left: Box::new(Identifier("a".to_string())),
+                                    right: Box::new(Identifier("c".to_string())),
+                                }),
+                                right: Box::new(BinaryOperation {
+                                    operation: BinaryOperationKind::Multiply,
+                                    left: Box::new(Identifier("d".to_string())),
+                                    right: Box::new(BinaryOperation {
+                                        operation: BinaryOperationKind::Divide,
+                                        left: Box::new(Number(1.0)),
+                                        right: Box::new(Identifier("e".to_string())),
+                                    }),
+                                }),
+                            }),
+                            right: Box::new(BinaryOperation {
+                                operation: BinaryOperationKind::Multiply,
+                                left: Box::new(BinaryOperation {
+                                    operation: BinaryOperationKind::Divide,
+                                    left: Box::new(Number(1.0)),
+                                    right: Box::new(Identifier("f".to_string())),
+                                }),
+                                right: Box::new(BinaryOperation {
+                                    operation: BinaryOperationKind::Divide,
+                                    left: Box::new(Number(1.0)),
+                                    right: Box::new(Identifier("g".to_string())),
+                                }),
+                            }),
+                        }),
+                    }),
+                }),
+            }),
+            right: Box::new(BinaryOperation {
+                operation: BinaryOperationKind::Plus,
+                left: Box::new(BinaryOperation {
+                    operation: BinaryOperationKind::Plus,
+                    left: Box::new(UnaryOperation {
+                        operation: UnaryOperationKind::Minus,
+                        expression: Box::new(Identifier("g".to_string())),
+                    }),
+                    right: Box::new(UnaryOperation {
+                        operation: UnaryOperationKind::Minus,
+                        expression: Box::new(Identifier("h".to_string())),
+                    }),
+                }),
+                right: Box::new(BinaryOperation {
+                    operation: BinaryOperationKind::Plus,
+                    left: Box::new(UnaryOperation {
+                        operation: UnaryOperationKind::Minus,
+                        expression: Box::new(Identifier("i".to_string())),
+                    }),
+                    right: Box::new(UnaryOperation {
+                        operation: UnaryOperationKind::Minus,
+                        expression: Box::new(Identifier("j".to_string())),
+                    }),
+                }),
+            }),
+        });
         assert_eq!(actual_ast, expected_ast);
     }
 }
