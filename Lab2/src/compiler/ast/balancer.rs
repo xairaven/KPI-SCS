@@ -605,4 +605,44 @@ mod tests {
         });
         assert_eq!(actual_ast, expected_ast);
     }
+
+    #[test]
+    fn test_6() {
+        let code = "a+(b+c+d+(e+f)+g)+h";
+        let balanced_ast = process(code);
+        assert!(balanced_ast.is_ok());
+
+        let actual_ast = balanced_ast.unwrap();
+        let expected_ast = AbstractSyntaxTree::from_node(AstNode::BinaryOperation {
+            operation: BinaryOperationKind::Plus,
+            left: Box::new(BinaryOperation {
+                operation: BinaryOperationKind::Plus,
+                left: Box::new(BinaryOperation {
+                    operation: BinaryOperationKind::Plus,
+                    left: Box::new(Identifier("a".to_string())),
+                    right: Box::new(Identifier("b".to_string())),
+                }),
+                right: Box::new(BinaryOperation {
+                    operation: BinaryOperationKind::Plus,
+                    left: Box::new(Identifier("c".to_string())),
+                    right: Box::new(Identifier("d".to_string())),
+                }),
+            }),
+            right: Box::new(BinaryOperation {
+                operation: BinaryOperationKind::Plus,
+                left: Box::new(BinaryOperation {
+                    operation: BinaryOperationKind::Plus,
+                    left: Box::new(Identifier("e".to_string())),
+                    right: Box::new(Identifier("f".to_string())),
+                }),
+                right: Box::new(BinaryOperation {
+                    operation: BinaryOperationKind::Plus,
+                    left: Box::new(Identifier("g".to_string())),
+                    right: Box::new(Identifier("h".to_string())),
+                }),
+            }),
+        });
+
+        assert_eq!(actual_ast, expected_ast);
+    }
 }
