@@ -50,31 +50,31 @@ impl AbstractSyntaxTree {
                 match operation {
                     // Rule 1: A - B  =>  A + (-B)
                     BinaryOperationKind::Minus => {
-                        if let AstNode::Number(number) = transformed_right
-                            && number.is_sign_negative()
-                        {
-                            // Rule 1: A - (-B)  =>  A + B
-                            Ok(AstNode::BinaryOperation {
-                                operation: BinaryOperationKind::Plus,
-                                left: Box::new(transformed_left),
-                                right: Box::new(AstNode::Number(f64::abs(number))),
-                            })
-                        } else if let AstNode::Number(number) = transformed_right {
-                            // Rule 1: A - B  =>  A + (-B)
-                            Ok(AstNode::BinaryOperation {
-                                operation: BinaryOperationKind::Plus,
-                                left: Box::new(transformed_left),
-                                right: Box::new(AstNode::Number(-number)),
-                            })
-                        } else {
-                            Ok(AstNode::BinaryOperation {
+                        match &transformed_right {
+                            AstNode::Number(number) if number.is_sign_negative() => {
+                                // Rule 1: A - (-B)  =>  A + B
+                                Ok(AstNode::BinaryOperation {
+                                    operation: BinaryOperationKind::Plus,
+                                    left: Box::new(transformed_left),
+                                    right: Box::new(AstNode::Number(f64::abs(*number))),
+                                })
+                            },
+                            AstNode::Number(number) => {
+                                // Rule 1: A - B  =>  A + (-B)
+                                Ok(AstNode::BinaryOperation {
+                                    operation: BinaryOperationKind::Plus,
+                                    left: Box::new(transformed_left),
+                                    right: Box::new(AstNode::Number(-number)),
+                                })
+                            },
+                            _ => Ok(AstNode::BinaryOperation {
                                 operation: BinaryOperationKind::Plus,
                                 left: Box::new(transformed_left),
                                 right: Box::new(AstNode::UnaryOperation {
                                     operation: UnaryOperationKind::Minus,
                                     expression: Box::new(transformed_right),
                                 }),
-                            })
+                            }),
                         }
                     },
 
