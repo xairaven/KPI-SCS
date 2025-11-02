@@ -415,4 +415,80 @@ mod tests {
 
         assert_eq!(actual_ast, expected_ast);
     }
+
+    #[test]
+    fn test_4() {
+        let code = "a/b/c/d/e/f/g/h/i";
+        let balanced_ast = process(code);
+        assert!(balanced_ast.is_ok());
+
+        let actual_ast = balanced_ast.unwrap();
+        let expected_ast = AbstractSyntaxTree::from_node(AstNode::BinaryOperation {
+            operation: BinaryOperationKind::Multiply,
+            left: Box::new(AstNode::BinaryOperation {
+                operation: BinaryOperationKind::Multiply,
+                left: Box::new(AstNode::BinaryOperation {
+                    operation: BinaryOperationKind::Multiply,
+                    left: Box::new(AstNode::BinaryOperation {
+                        operation: BinaryOperationKind::Multiply,
+                        left: Box::new(AstNode::Identifier("a".to_string())),
+                        right: Box::new(AstNode::BinaryOperation {
+                            operation: BinaryOperationKind::Divide,
+                            left: Box::new(AstNode::Number(1.0)),
+                            right: Box::new(AstNode::Identifier("b".to_string())),
+                        }),
+                    }),
+                    right: Box::new(AstNode::BinaryOperation {
+                        operation: BinaryOperationKind::Multiply,
+                        left: Box::new(AstNode::BinaryOperation {
+                            operation: BinaryOperationKind::Divide,
+                            left: Box::new(AstNode::Number(1.0)),
+                            right: Box::new(AstNode::Identifier("c".to_string())),
+                        }),
+                        right: Box::new(AstNode::BinaryOperation {
+                            operation: BinaryOperationKind::Divide,
+                            left: Box::new(AstNode::Number(1.0)),
+                            right: Box::new(AstNode::Identifier("d".to_string())),
+                        }),
+                    }),
+                }),
+                right: Box::new(AstNode::BinaryOperation {
+                    operation: BinaryOperationKind::Multiply,
+                    left: Box::new(AstNode::BinaryOperation {
+                        operation: BinaryOperationKind::Multiply,
+                        left: Box::new(AstNode::BinaryOperation {
+                            operation: BinaryOperationKind::Divide,
+                            left: Box::new(AstNode::Number(1.0)),
+                            right: Box::new(AstNode::Identifier("e".to_string())),
+                        }),
+                        right: Box::new(AstNode::BinaryOperation {
+                            operation: BinaryOperationKind::Divide,
+                            left: Box::new(AstNode::Number(1.0)),
+                            right: Box::new(AstNode::Identifier("f".to_string())),
+                        }),
+                    }),
+                    right: Box::new(AstNode::BinaryOperation {
+                        operation: BinaryOperationKind::Multiply,
+                        left: Box::new(AstNode::BinaryOperation {
+                            operation: BinaryOperationKind::Divide,
+                            left: Box::new(AstNode::Number(1.0)),
+                            right: Box::new(AstNode::Identifier("g".to_string())),
+                        }),
+                        right: Box::new(AstNode::BinaryOperation {
+                            operation: BinaryOperationKind::Divide,
+                            left: Box::new(AstNode::Number(1.0)),
+                            right: Box::new(AstNode::Identifier("h".to_string())),
+                        }),
+                    }),
+                }),
+            }),
+            right: Box::new(AstNode::BinaryOperation {
+                operation: BinaryOperationKind::Divide,
+                left: Box::new(AstNode::Number(1.0)),
+                right: Box::new(AstNode::Identifier("i".to_string())),
+            }),
+        });
+
+        assert_eq!(actual_ast, expected_ast);
+    }
 }
