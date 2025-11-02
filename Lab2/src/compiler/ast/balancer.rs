@@ -60,33 +60,39 @@ impl AbstractSyntaxTree {
                 left,
                 right,
             } => {
-                let balanced_left = Self::balance_tree(*left)?;
-                let balanced_right = Self::balance_tree(*right)?;
-
                 match operation {
                     BinaryOperationKind::Plus | BinaryOperationKind::Multiply => {
                         let mut operands = Vec::new();
                         Self::collect_operands(
                             AstNode::BinaryOperation {
                                 operation: operation.clone(),
-                                left: Box::new(balanced_left),
-                                right: Box::new(balanced_right),
+                                left,
+                                right,
                             },
                             operation.clone(),
                             &mut operands,
                         );
 
-                        Self::build_balanced_tree(operands, operation)
+                        let mut balanced_operands = Vec::new();
+                        for operand in operands {
+                            balanced_operands.push(Self::balance_tree(operand)?);
+                        }
+
+                        Self::build_balanced_tree(balanced_operands, operation)
                     },
 
                     // Other operations (And, Or, etc.) are not associative
                     // in the arithmetic context. Just return them
                     // with already balanced children.
-                    _ => Ok(AstNode::BinaryOperation {
-                        operation,
-                        left: Box::new(balanced_left),
-                        right: Box::new(balanced_right),
-                    }),
+                    _ => {
+                        let balanced_left = Self::balance_tree(*left)?;
+                        let balanced_right = Self::balance_tree(*right)?;
+                        Ok(AstNode::BinaryOperation {
+                            operation,
+                            left: Box::new(balanced_left),
+                            right: Box::new(balanced_right),
+                        })
+                    },
                 }
             },
         }
@@ -257,6 +263,82 @@ mod tests {
     }
 
     #[test]
+    fn test_0() {
+        let code = "a+b*c + k - x - d - e - f/g/h/q";
+        let balanced_ast = process(code);
+        assert!(balanced_ast.is_ok());
+
+        let actual_ast = balanced_ast.unwrap();
+        let expected_ast = AbstractSyntaxTree::from_node(BinaryOperation {
+            operation: BinaryOperationKind::Plus,
+            left: Box::new(BinaryOperation {
+                operation: BinaryOperationKind::Plus,
+                left: Box::new(BinaryOperation {
+                    operation: BinaryOperationKind::Plus,
+                    left: Box::new(Identifier("a".to_string())),
+                    right: Box::new(BinaryOperation {
+                        operation: BinaryOperationKind::Multiply,
+                        left: Box::new(Identifier("b".to_string())),
+                        right: Box::new(Identifier("c".to_string())),
+                    }),
+                }),
+                right: Box::new(BinaryOperation {
+                    operation: BinaryOperationKind::Plus,
+                    left: Box::new(Identifier("k".to_string())),
+                    right: Box::new(UnaryOperation {
+                        operation: UnaryOperationKind::Minus,
+                        expression: Box::new(Identifier("x".to_string())),
+                    }),
+                }),
+            }),
+            right: Box::new(BinaryOperation {
+                operation: BinaryOperationKind::Plus,
+                left: Box::new(BinaryOperation {
+                    operation: BinaryOperationKind::Plus,
+                    left: Box::new(UnaryOperation {
+                        operation: UnaryOperationKind::Minus,
+                        expression: Box::new(Identifier("d".to_string())),
+                    }),
+                    right: Box::new(UnaryOperation {
+                        operation: UnaryOperationKind::Minus,
+                        expression: Box::new(Identifier("e".to_string())),
+                    }),
+                }),
+                right: Box::new(UnaryOperation {
+                    operation: UnaryOperationKind::Minus,
+                    expression: Box::new(BinaryOperation {
+                        operation: BinaryOperationKind::Multiply,
+                        left: Box::new(BinaryOperation {
+                            operation: BinaryOperationKind::Multiply,
+                            left: Box::new(Identifier("f".to_string())),
+                            right: Box::new(BinaryOperation {
+                                operation: BinaryOperationKind::Divide,
+                                left: Box::new(Number(1.0)),
+                                right: Box::new(Identifier("g".to_string())),
+                            }),
+                        }),
+                        right: Box::new(BinaryOperation {
+                            operation: BinaryOperationKind::Multiply,
+                            left: Box::new(BinaryOperation {
+                                operation: BinaryOperationKind::Divide,
+                                left: Box::new(Number(1.0)),
+                                right: Box::new(Identifier("h".to_string())),
+                            }),
+                            right: Box::new(BinaryOperation {
+                                operation: BinaryOperationKind::Divide,
+                                left: Box::new(Number(1.0)),
+                                right: Box::new(Identifier("q".to_string())),
+                            }),
+                        }),
+                    }),
+                }),
+            }),
+        });
+
+        assert_eq!(actual_ast, expected_ast);
+    }
+
+    #[test]
     fn test_1() {
         let code = "a+b+c+d+e+f+g+h";
         let balanced_ast = process(code);
@@ -297,7 +379,7 @@ mod tests {
     }
 
     #[test]
-    fn test_2() {
+    fn test_1_2() {
         let code = "a+b+c+d+e+f+g+h+i";
         let balanced_ast = process(code);
         assert!(balanced_ast.is_ok());
@@ -341,7 +423,7 @@ mod tests {
     }
 
     #[test]
-    fn test_3() {
+    fn test_2() {
         let code = "a-b-c-d-e-f-g-h-i";
         let balanced_ast = process(code);
         assert!(balanced_ast.is_ok());
@@ -409,7 +491,7 @@ mod tests {
     }
 
     #[test]
-    fn test_4() {
+    fn test_3() {
         let code = "a/b/c/d/e/f/g/h/i";
         let balanced_ast = process(code);
         assert!(balanced_ast.is_ok());
@@ -485,7 +567,7 @@ mod tests {
     }
 
     #[test]
-    fn test_5() {
+    fn test_4() {
         let code = "a*(b-4) - 2*b*c - c*d - a*c*d/e/f/g - g-h-i-j";
         let balanced_ast = process(code);
         assert!(balanced_ast.is_ok());
@@ -597,7 +679,7 @@ mod tests {
     }
 
     #[test]
-    fn test_6() {
+    fn test_5() {
         let code = "a+(b+c+d+(e+f)+g)+h";
         let balanced_ast = process(code);
         assert!(balanced_ast.is_ok());
