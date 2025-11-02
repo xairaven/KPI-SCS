@@ -349,18 +349,6 @@ impl AstParser {
         self.lexemes.get(self.current_index)
     }
 
-    fn peek_next(&self) -> Option<&Lexeme> {
-        self.lexemes.get(self.current_index + 1)
-    }
-
-    fn peek_next_by(&self, by: usize) -> Option<&Lexeme> {
-        self.lexemes.get(self.current_index + by)
-    }
-
-    fn peek_previous(&self) -> Option<&Lexeme> {
-        self.lexemes.get(self.current_index - 1)
-    }
-
     fn peek_previous_by(&self, by: usize) -> Option<&Lexeme> {
         self.lexemes.get(self.current_index - by)
     }
