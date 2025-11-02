@@ -38,6 +38,12 @@ pub fn compile(source: &str, is_pretty: bool) {
             return;
         },
     };
+    // AST Math Optimization
+    let ast = ast.compute();
+    ast::math::report_success(&ast);
+    if ast::math::check_finalization(&ast) {
+        return;
+    }
     // AST Parallelization
     let ast = ast.transform();
     ast::transform::report_success(&ast);
@@ -57,6 +63,7 @@ pub fn compile(source: &str, is_pretty: bool) {
 
 pub mod ast {
     pub mod balancer;
+    pub mod math;
     pub mod transform;
     pub mod tree;
 }
