@@ -21,10 +21,67 @@ impl AbstractSyntaxTree {
                 expression,
             } => {
                 let transformed_expression = Self::transform_recursive(*expression)?;
-                Ok(AstNode::UnaryOperation {
-                    operation,
-                    expression: Box::new(transformed_expression),
-                })
+                match operation {
+                    UnaryOperationKind::Not => Ok(AstNode::UnaryOperation {
+                        operation,
+                        expression: Box::new(transformed_expression),
+                    }),
+
+                    UnaryOperationKind::Minus => {
+                        match transformed_expression {
+                            // Rule: -(-A) => A
+                            AstNode::UnaryOperation {
+                                operation: UnaryOperationKind::Minus,
+                                expression: inner_expr,
+                            } => Ok(*inner_expr),
+
+                            // Rule: -(A + B) => (-A) + (-B)
+                            AstNode::BinaryOperation {
+                                operation: BinaryOperationKind::Plus,
+                                left,
+                                right,
+                            } => {
+                                let new_left = AstNode::UnaryOperation {
+                                    operation: UnaryOperationKind::Minus,
+                                    expression: left,
+                                };
+                                let new_right = AstNode::UnaryOperation {
+                                    operation: UnaryOperationKind::Minus,
+                                    expression: right,
+                                };
+                                Self::transform_recursive(AstNode::BinaryOperation {
+                                    operation: BinaryOperationKind::Plus,
+                                    left: Box::new(new_left),
+                                    right: Box::new(new_right),
+                                })
+                            },
+
+                            // Rule: -(A - B) => (-A) + B
+                            AstNode::BinaryOperation {
+                                operation: BinaryOperationKind::Minus,
+                                left,
+                                right,
+                            } => {
+                                let new_left = AstNode::UnaryOperation {
+                                    operation: UnaryOperationKind::Minus,
+                                    expression: left,
+                                };
+                                Self::transform_recursive(AstNode::BinaryOperation {
+                                    operation: BinaryOperationKind::Plus,
+                                    left: Box::new(new_left),
+                                    right,
+                                })
+                            },
+
+                            // Other cases (for example, -(A*B) or just -A)
+                            // just leaving them (for example -(A*B) or just -A)
+                            _ => Ok(AstNode::UnaryOperation {
+                                operation: UnaryOperationKind::Minus,
+                                expression: Box::new(transformed_expression),
+                            }),
+                        }
+                    },
+                }
             },
 
             AstNode::FunctionCall { name, arguments } => {
@@ -67,54 +124,34 @@ impl AbstractSyntaxTree {
                                     right: Box::new(AstNode::Number(-number)),
                                 })
                             },
-                            AstNode::BinaryOperation {
-                                operation: sub_operation,
-                                left: sub_left,
-                                right: sub_right,
-                            } if sub_operation.eq(&BinaryOperationKind::Plus) => {
-                                if let AstNode::UnaryOperation {
-                                    operation: UnaryOperationKind::Minus,
-                                    expression: sub_right_pure,
-                                } = sub_right.as_ref()
-                                {
-                                    let reversed_right = AstNode::BinaryOperation {
-                                        operation: BinaryOperationKind::Plus,
-                                        left: sub_right_pure.clone(),
-                                        right: Box::new(AstNode::UnaryOperation {
-                                            operation: UnaryOperationKind::Minus,
-                                            expression: Box::new(*sub_left.clone()),
-                                        }),
-                                    };
-
-                                    return Ok(AstNode::BinaryOperation {
-                                        operation: BinaryOperationKind::Plus,
-                                        left: Box::new(transformed_left),
-                                        right: Box::new(reversed_right),
-                                    });
-                                }
-
-                                Ok(AstNode::BinaryOperation {
-                                    operation: BinaryOperationKind::Plus,
-                                    left: Box::new(transformed_left),
-                                    right: Box::new(AstNode::UnaryOperation {
-                                        operation: UnaryOperationKind::Minus,
-                                        expression: Box::new(transformed_right),
-                                    }),
-                                })
-                            },
-                            _ => Ok(AstNode::BinaryOperation {
-                                operation: BinaryOperationKind::Plus,
-                                left: Box::new(transformed_left),
-                                right: Box::new(AstNode::UnaryOperation {
+                            _ => {
+                                let new_right = AstNode::UnaryOperation {
                                     operation: UnaryOperationKind::Minus,
                                     expression: Box::new(transformed_right),
-                                }),
-                            }),
+                                };
+
+                                let result_node = AstNode::BinaryOperation {
+                                    operation: BinaryOperationKind::Plus,
+                                    left: Box::new(transformed_left),
+                                    right: Box::new(new_right),
+                                };
+                                Self::transform_recursive(result_node)
+                            },
                         }
                     },
 
                     // Rule 2: A / B  =>  A * (1 / B)
                     BinaryOperationKind::Divide => {
+                        if let AstNode::Number(number) = transformed_left
+                            && number == 1.0
+                        {
+                            return Ok(AstNode::BinaryOperation {
+                                operation: BinaryOperationKind::Divide,
+                                left: Box::new(transformed_left),
+                                right: Box::new(transformed_right),
+                            });
+                        }
+
                         if let AstNode::Number(number) = transformed_right {
                             return if number == 0.0 {
                                 Err(AstError::DivisionByZero)
