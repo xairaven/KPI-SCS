@@ -870,4 +870,50 @@ mod tests {
             }))
         );
     }
+
+    #[test]
+    fn test_11_1() {
+        let code = "1/(c*2*4.76*(1-2+1))";
+
+        let tokens = tokenizer::tokenize(code);
+        // Syntax Analysis
+        let syntax_errors = SyntaxAnalyzer::new(&tokens).analyze();
+        let is_syntax_analysis_successful = syntax_errors.is_empty();
+        assert!(is_syntax_analysis_successful);
+        // Making lexemes
+        let lexemes = Lexer::new(tokens).run().unwrap();
+        // AST Generation
+        let ast = AstParser::new(lexemes).parse().unwrap();
+        // AST Computing, Run #1
+        let ast = ast.compute();
+
+        assert_eq!(
+            ast,
+            Err(AstError::DivisionByZero(BinaryOperation {
+                operation: BinaryOperationKind::Divide,
+                left: Box::new(Number(1.0,)),
+                right: Box::new(BinaryOperation {
+                    operation: BinaryOperationKind::Multiply,
+                    left: Box::new(BinaryOperation {
+                        operation: BinaryOperationKind::Multiply,
+                        left: Box::new(BinaryOperation {
+                            operation: BinaryOperationKind::Multiply,
+                            left: Box::new(Identifier("c".to_string(),)),
+                            right: Box::new(Number(2.0,)),
+                        }),
+                        right: Box::new(Number(4.76,)),
+                    }),
+                    right: Box::new(BinaryOperation {
+                        operation: BinaryOperationKind::Plus,
+                        left: Box::new(BinaryOperation {
+                            operation: BinaryOperationKind::Minus,
+                            left: Box::new(Number(1.0,)),
+                            right: Box::new(Number(2.0,)),
+                        }),
+                        right: Box::new(Number(1.0,)),
+                    }),
+                }),
+            }))
+        );
+    }
 }
