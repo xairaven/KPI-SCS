@@ -40,8 +40,8 @@ pub fn compile(source: &str, is_pretty: bool) {
     };
     // AST Math Optimization, #1
     let ast = match compute_run(ast, 1) {
-        Ok(ast) => ast,
-        Err(_) => return,
+        Some(ast) => ast,
+        None => return,
     };
     // AST Parallelization
     let ast_result = ast.transform();
@@ -57,8 +57,8 @@ pub fn compile(source: &str, is_pretty: bool) {
     };
     // AST Math Optimization, #2
     let ast = match compute_run(ast, 2) {
-        Ok(ast) => ast,
-        Err(_) => return,
+        Some(ast) => ast,
+        None => return,
     };
     // AST Balancing
     let ast_result = ast.balance();
@@ -74,9 +74,7 @@ pub fn compile(source: &str, is_pretty: bool) {
     };
 }
 
-pub fn compute_run(
-    tree: AbstractSyntaxTree, number: u8,
-) -> Result<AbstractSyntaxTree, ()> {
+fn compute_run(tree: AbstractSyntaxTree, number: u8) -> Option<AbstractSyntaxTree> {
     // AST Math Optimization
     let ast_result = tree.compute();
     let ast = match ast_result {
@@ -86,13 +84,13 @@ pub fn compute_run(
         },
         Err(error) => {
             ast::math::report_error(error, number);
-            return Err(());
+            return None;
         },
     };
     if ast::math::check_finalization(&ast) {
-        return Err(());
+        return None;
     }
-    Ok(ast)
+    Some(ast)
 }
 
 pub mod ast {

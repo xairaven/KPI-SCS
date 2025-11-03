@@ -196,7 +196,6 @@ pub fn report_error(error: AstError) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::compiler;
     use crate::compiler::ast::tree::AstNode::{
         BinaryOperation, Identifier, Number, UnaryOperation,
     };
@@ -205,13 +204,13 @@ mod tests {
     use crate::compiler::syntax::SyntaxAnalyzer;
     use crate::compiler::{ast, lexer, tokenizer};
 
-    fn process(code: &str) -> Result<AbstractSyntaxTree, ()> {
+    fn process(code: &str) -> Option<AbstractSyntaxTree> {
         let tokens = tokenizer::tokenize(code);
         // Syntax Analysis
         let syntax_errors = SyntaxAnalyzer::new(&tokens).analyze();
         let is_syntax_analysis_successful = syntax_errors.is_empty();
         if !is_syntax_analysis_successful {
-            return Err(());
+            return None;
         }
         // Making lexemes
         let lexemes_result = Lexer::new(tokens).run();
@@ -219,7 +218,7 @@ mod tests {
             Ok(lexemes) => lexemes,
             Err(error) => {
                 lexer::report_error(error);
-                return Err(());
+                return None;
             },
         };
 
@@ -229,40 +228,55 @@ mod tests {
             Ok(ast) => ast,
             Err(error) => {
                 ast::tree::report_error(error);
-                return Err(());
+                return None;
             },
         };
         // AST Computing, Run #1
-        let ast = compiler::compute_run(ast, 1)?;
+        let ast = compute_run(ast, 1)?;
         // AST Parallelization
         let ast_result = ast.transform();
         let ast = match ast_result {
             Ok(ast) => ast,
             Err(error) => {
                 ast::transform::report_error(error);
-                return Err(());
+                return None;
             },
         };
         ast::transform::report_success(&ast);
         // AST Computing, Run #2
-        let ast = compiler::compute_run(ast, 2)?;
+        let ast = compute_run(ast, 2)?;
         // AST Balancing
         let ast_result = ast.balance();
         let ast = match ast_result {
             Ok(ast) => ast,
             Err(error) => {
                 report_error(error);
-                return Err(());
+                return None;
             },
         };
-        Ok(ast)
+        Some(ast)
+    }
+
+    fn compute_run(tree: AbstractSyntaxTree, number: u8) -> Option<AbstractSyntaxTree> {
+        // AST Math Optimization
+        let ast_result = tree.compute();
+        match ast_result {
+            Ok(ast) => {
+                ast::math::report_success(&ast, number);
+                Some(ast)
+            },
+            Err(error) => {
+                ast::math::report_error(error, number);
+                None
+            },
+        }
     }
 
     #[test]
     fn test_0() {
         let code = "a+b*c + k - x - d - e - f/g/h/q";
         let balanced_ast = process(code);
-        assert!(balanced_ast.is_ok());
+        assert!(balanced_ast.is_some());
 
         let actual_ast = balanced_ast.unwrap();
         let expected_ast = AbstractSyntaxTree::from_node(BinaryOperation {
@@ -338,7 +352,7 @@ mod tests {
     fn test_1() {
         let code = "a+b+c+d+e+f+g+h";
         let balanced_ast = process(code);
-        assert!(balanced_ast.is_ok());
+        assert!(balanced_ast.is_some());
 
         let actual_ast = balanced_ast.unwrap();
         let expected_ast = AbstractSyntaxTree::from_node(AstNode::BinaryOperation {
@@ -378,7 +392,7 @@ mod tests {
     fn test_1_2() {
         let code = "a+b+c+d+e+f+g+h+i";
         let balanced_ast = process(code);
-        assert!(balanced_ast.is_ok());
+        assert!(balanced_ast.is_some());
 
         let actual_ast = balanced_ast.unwrap();
         let expected_ast = AbstractSyntaxTree::from_node(BinaryOperation {
@@ -422,7 +436,7 @@ mod tests {
     fn test_2() {
         let code = "a-b-c-d-e-f-g-h-i";
         let balanced_ast = process(code);
-        assert!(balanced_ast.is_ok());
+        assert!(balanced_ast.is_some());
 
         let actual_ast = balanced_ast.unwrap();
         let expected_ast = AbstractSyntaxTree::from_node(BinaryOperation {
@@ -490,7 +504,7 @@ mod tests {
     fn test_3() {
         let code = "a/b/c/d/e/f/g/h/i";
         let balanced_ast = process(code);
-        assert!(balanced_ast.is_ok());
+        assert!(balanced_ast.is_some());
 
         let actual_ast = balanced_ast.unwrap();
         let expected_ast = AbstractSyntaxTree::from_node(AstNode::BinaryOperation {
@@ -566,7 +580,7 @@ mod tests {
     fn test_4() {
         let code = "a*(b-4) - 2*b*c - c*d - a*c*d/e/f/g - g-h-i-j";
         let balanced_ast = process(code);
-        assert!(balanced_ast.is_ok());
+        assert!(balanced_ast.is_some());
 
         let actual_ast = balanced_ast.unwrap();
         let expected_ast = AbstractSyntaxTree::from_node(BinaryOperation {
@@ -678,7 +692,7 @@ mod tests {
     fn test_5() {
         let code = "a+(b+c+d+(e+f)+g)+h";
         let balanced_ast = process(code);
-        assert!(balanced_ast.is_ok());
+        assert!(balanced_ast.is_some());
 
         let actual_ast = balanced_ast.unwrap();
         let expected_ast = AbstractSyntaxTree::from_node(AstNode::BinaryOperation {
@@ -718,7 +732,7 @@ mod tests {
     fn test_6() {
         let code = "a-((b-c-d)-(e-f)-g)-h";
         let balanced_ast = process(code);
-        assert!(balanced_ast.is_ok());
+        assert!(balanced_ast.is_some());
 
         let actual_ast = balanced_ast.unwrap();
         let expected_ast = AbstractSyntaxTree::from_node(BinaryOperation {
@@ -767,7 +781,7 @@ mod tests {
     fn test_7() {
         let code = "5040/8/7/6/5/4/3/2";
         let balanced_ast = process(code);
-        assert!(balanced_ast.is_ok());
+        assert!(balanced_ast.is_some());
 
         let actual_ast = balanced_ast.unwrap();
         let expected_ast = AbstractSyntaxTree::from_node(Number(0.125));
@@ -779,7 +793,7 @@ mod tests {
     fn test_8() {
         let code = "10-9-8-7-6-5-4-3-2-1";
         let balanced_ast = process(code);
-        assert!(balanced_ast.is_ok());
+        assert!(balanced_ast.is_some());
 
         let actual_ast = balanced_ast.unwrap();
         let expected_ast = AbstractSyntaxTree::from_node(Number(-35.0));
@@ -791,7 +805,7 @@ mod tests {
     fn test_9() {
         let code = "64-(32-16)-8-(4-2-1)";
         let balanced_ast = process(code);
-        assert!(balanced_ast.is_ok());
+        assert!(balanced_ast.is_some());
 
         let actual_ast = balanced_ast.unwrap();
         let expected_ast = AbstractSyntaxTree::from_node(Number(39.0));
