@@ -196,6 +196,7 @@ pub fn report_error(error: AstError) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::compiler;
     use crate::compiler::ast::tree::AstNode::{
         BinaryOperation, Identifier, Number, UnaryOperation,
     };
@@ -231,15 +232,8 @@ mod tests {
                 return Err(());
             },
         };
-        // AST Computing
-        let ast_result = ast.compute();
-        let ast = match ast_result {
-            Ok(ast) => ast,
-            Err(error) => {
-                ast::math::report_error(error);
-                return Err(());
-            },
-        };
+        // AST Computing, Run #1
+        let ast = compiler::compute_run(ast, 1)?;
         // AST Parallelization
         let ast_result = ast.transform();
         let ast = match ast_result {
@@ -250,6 +244,8 @@ mod tests {
             },
         };
         ast::transform::report_success(&ast);
+        // AST Computing, Run #2
+        let ast = compiler::compute_run(ast, 2)?;
         // AST Balancing
         let ast_result = ast.balance();
         let ast = match ast_result {

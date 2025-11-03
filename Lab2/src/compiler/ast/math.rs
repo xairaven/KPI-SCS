@@ -58,6 +58,58 @@ impl AbstractSyntaxTree {
                             _ => unreachable!(),
                         };
                         Ok(AstNode::Number(result))
+                    } else if let AstNode::Number(number) = &computed_left {
+                        if number == &0.0 {
+                            if [
+                                BinaryOperationKind::Multiply,
+                                BinaryOperationKind::Divide,
+                            ]
+                            .contains(operation)
+                            {
+                                return Ok(AstNode::Number(0.0));
+                            }
+                            if BinaryOperationKind::Plus == *operation {
+                                return Ok(computed_right);
+                            }
+                            if BinaryOperationKind::Minus == *operation {
+                                return Ok(AstNode::UnaryOperation {
+                                    operation: UnaryOperationKind::Minus,
+                                    expression: Box::new(computed_right),
+                                });
+                            }
+                        }
+                        if number == &1.0 && BinaryOperationKind::Multiply == *operation {
+                            return Ok(computed_right);
+                        }
+
+                        Ok(AstNode::BinaryOperation {
+                            operation: operation.clone(),
+                            left: Box::new(computed_left),
+                            right: Box::new(computed_right),
+                        })
+                    } else if let AstNode::Number(number) = &computed_right {
+                        if number == &0.0 {
+                            if BinaryOperationKind::Divide == *operation {
+                                return Err(AstError::DivisionByZero);
+                            }
+                            if BinaryOperationKind::Multiply == *operation {
+                                return Ok(AstNode::Number(0.0));
+                            }
+                            if [BinaryOperationKind::Plus, BinaryOperationKind::Minus]
+                                .contains(operation)
+                            {
+                                return Ok(computed_left);
+                            }
+                        }
+                        if number == &1.0 && BinaryOperationKind::Multiply == *operation {
+                            return Ok(computed_left);
+                        }
+
+                        Ok(AstNode::BinaryOperation {
+                            operation: operation.clone(),
+                            left: Box::new(computed_left),
+                            right: Box::new(computed_right),
+                        })
                     } else {
                         Ok(AstNode::BinaryOperation {
                             operation: operation.clone(),
@@ -98,19 +150,20 @@ impl AbstractSyntaxTree {
     }
 }
 
-pub fn report_success(tree: &AbstractSyntaxTree) {
+pub fn report_success(tree: &AbstractSyntaxTree, run: u8) {
     log::warn!(
-        "{} {}.",
-        "Computing constants of Abstract-Syntax Tree",
+        "Computing constants of Abstract-Syntax Tree (Run #{}) {}.",
+        run.to_string().bright_magenta().italic(),
         "success".bold().green()
     );
     log::info!("{}", tree.pretty_print());
 }
 
-pub fn report_error(error: AstError) {
+pub fn report_error(error: AstError, run: u8) {
     log::error!(
-        "{} {}",
+        "{} (Run #{}) {}",
         "Computing constants of Abstract-Syntax Tree:".bold().red(),
+        run.to_string().bright_magenta().italic(),
         error
     );
 }

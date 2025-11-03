@@ -1,4 +1,4 @@
-use crate::compiler::ast::tree::AstParser;
+use crate::compiler::ast::tree::{AbstractSyntaxTree, AstParser};
 use crate::compiler::lexer::Lexer;
 use crate::compiler::syntax::SyntaxAnalyzer;
 
@@ -38,21 +38,11 @@ pub fn compile(source: &str, is_pretty: bool) {
             return;
         },
     };
-    // AST Math Optimization
-    let ast_result = ast.compute();
-    let ast = match ast_result {
-        Ok(ast) => {
-            ast::math::report_success(&ast);
-            ast
-        },
-        Err(error) => {
-            ast::math::report_error(error);
-            return;
-        },
+    // AST Math Optimization, #1
+    let ast = match compute_run(ast, 1) {
+        Ok(ast) => ast,
+        Err(_) => return,
     };
-    if ast::math::check_finalization(&ast) {
-        return;
-    }
     // AST Parallelization
     let ast_result = ast.transform();
     let ast = match ast_result {
@@ -64,6 +54,11 @@ pub fn compile(source: &str, is_pretty: bool) {
             ast::transform::report_error(error);
             return;
         },
+    };
+    // AST Math Optimization, #2
+    let ast = match compute_run(ast, 2) {
+        Ok(ast) => ast,
+        Err(_) => return,
     };
     // AST Balancing
     let ast_result = ast.balance();
@@ -77,6 +72,27 @@ pub fn compile(source: &str, is_pretty: bool) {
             return;
         },
     };
+}
+
+pub fn compute_run(
+    tree: AbstractSyntaxTree, number: u8,
+) -> Result<AbstractSyntaxTree, ()> {
+    // AST Math Optimization
+    let ast_result = tree.compute();
+    let ast = match ast_result {
+        Ok(ast) => {
+            ast::math::report_success(&ast, number);
+            ast
+        },
+        Err(error) => {
+            ast::math::report_error(error, number);
+            return Err(());
+        },
+    };
+    if ast::math::check_finalization(&ast) {
+        return Err(());
+    }
+    Ok(ast)
 }
 
 pub mod ast {
