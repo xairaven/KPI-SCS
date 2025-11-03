@@ -717,4 +717,89 @@ mod tests {
 
         assert_eq!(actual_ast, expected_ast);
     }
+
+    #[test]
+    fn test_6() {
+        let code = "a-((b-c-d)-(e-f)-g)-h";
+        let balanced_ast = process(code);
+        assert!(balanced_ast.is_ok());
+
+        let actual_ast = balanced_ast.unwrap();
+        let expected_ast = AbstractSyntaxTree::from_node(BinaryOperation {
+            operation: BinaryOperationKind::Plus,
+            left: Box::new(BinaryOperation {
+                operation: BinaryOperationKind::Plus,
+                left: Box::new(BinaryOperation {
+                    operation: BinaryOperationKind::Plus,
+                    left: Box::new(Identifier("a".to_string())),
+                    right: Box::new(UnaryOperation {
+                        operation: UnaryOperationKind::Minus,
+                        expression: Box::new(Identifier("b".to_string())),
+                    }),
+                }),
+                right: Box::new(BinaryOperation {
+                    operation: BinaryOperationKind::Plus,
+                    left: Box::new(Identifier("c".to_string())),
+                    right: Box::new(Identifier("d".to_string())),
+                }),
+            }),
+            right: Box::new(BinaryOperation {
+                operation: BinaryOperationKind::Plus,
+                left: Box::new(BinaryOperation {
+                    operation: BinaryOperationKind::Plus,
+                    left: Box::new(Identifier("e".to_string())),
+                    right: Box::new(UnaryOperation {
+                        operation: UnaryOperationKind::Minus,
+                        expression: Box::new(Identifier("f".to_string())),
+                    }),
+                }),
+                right: Box::new(BinaryOperation {
+                    operation: BinaryOperationKind::Plus,
+                    left: Box::new(Identifier("g".to_string())),
+                    right: Box::new(UnaryOperation {
+                        operation: UnaryOperationKind::Minus,
+                        expression: Box::new(Identifier("h".to_string())),
+                    }),
+                }),
+            }),
+        });
+
+        assert_eq!(actual_ast, expected_ast);
+    }
+
+    #[test]
+    fn test_7() {
+        let code = "5040/8/7/6/5/4/3/2";
+        let balanced_ast = process(code);
+        assert!(balanced_ast.is_ok());
+
+        let actual_ast = balanced_ast.unwrap();
+        let expected_ast = AbstractSyntaxTree::from_node(Number(0.125));
+
+        assert_eq!(actual_ast, expected_ast);
+    }
+
+    #[test]
+    fn test_8() {
+        let code = "10-9-8-7-6-5-4-3-2-1";
+        let balanced_ast = process(code);
+        assert!(balanced_ast.is_ok());
+
+        let actual_ast = balanced_ast.unwrap();
+        let expected_ast = AbstractSyntaxTree::from_node(Number(-35.0));
+
+        assert_eq!(actual_ast, expected_ast);
+    }
+
+    #[test]
+    fn test_9() {
+        let code = "64-(32-16)-8-(4-2-1)";
+        let balanced_ast = process(code);
+        assert!(balanced_ast.is_ok());
+
+        let actual_ast = balanced_ast.unwrap();
+        let expected_ast = AbstractSyntaxTree::from_node(Number(39.0));
+
+        assert_eq!(actual_ast, expected_ast);
+    }
 }
