@@ -379,7 +379,7 @@ pub enum AstError {
 
     CannotBuildEmptyTree,
     FailedPopFromQueue,
-    DivisionByZero,
+    DivisionByZero(AstNode),
 }
 
 impl std::fmt::Display for AstError {
@@ -408,7 +408,7 @@ impl std::fmt::Display for AstError {
             Self::FailedPopFromQueue => {
                 "Failed to pop node from the queue during tree construction"
             },
-            Self::DivisionByZero => "Division by zero",
+            Self::DivisionByZero(node) => &format!("Division by zero. Node: {:#?}", node),
         };
 
         write!(f, "{}", text)

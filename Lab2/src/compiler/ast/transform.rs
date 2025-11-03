@@ -11,7 +11,7 @@ impl AbstractSyntaxTree {
     }
 
     pub fn transform_recursive(node: AstNode) -> Result<AstNode, AstError> {
-        match node {
+        match &node {
             AstNode::Number(_) | AstNode::Identifier(_) | AstNode::StringLiteral(_) => {
                 Ok(node)
             },
@@ -20,10 +20,11 @@ impl AbstractSyntaxTree {
                 operation,
                 expression,
             } => {
-                let transformed_expression = Self::transform_recursive(*expression)?;
+                let transformed_expression =
+                    Self::transform_recursive(*expression.clone())?;
                 match operation {
                     UnaryOperationKind::Not => Ok(AstNode::UnaryOperation {
-                        operation,
+                        operation: operation.clone(),
                         expression: Box::new(transformed_expression),
                     }),
 
@@ -87,11 +88,12 @@ impl AbstractSyntaxTree {
             AstNode::FunctionCall { name, arguments } => {
                 let mut transformed_arguments = vec![];
                 for argument in arguments {
-                    transformed_arguments.push(Self::transform_recursive(argument)?);
+                    transformed_arguments
+                        .push(Self::transform_recursive(argument.clone())?);
                 }
 
                 Ok(AstNode::FunctionCall {
-                    name,
+                    name: name.clone(),
                     arguments: transformed_arguments,
                 })
             },
@@ -101,8 +103,8 @@ impl AbstractSyntaxTree {
                 left,
                 right,
             } => {
-                let transformed_left = Self::transform_recursive(*left)?;
-                let transformed_right = Self::transform_recursive(*right)?;
+                let transformed_left = Self::transform_recursive(*left.clone())?;
+                let transformed_right = Self::transform_recursive(*right.clone())?;
 
                 match operation {
                     // Rule 1: A - B  =>  A + (-B)
@@ -154,7 +156,7 @@ impl AbstractSyntaxTree {
 
                         if let AstNode::Number(number) = transformed_right {
                             return if number == 0.0 {
-                                Err(AstError::DivisionByZero)
+                                Err(AstError::DivisionByZero(node))
                             } else {
                                 Ok(AstNode::BinaryOperation {
                                     operation: BinaryOperationKind::Multiply,
@@ -177,7 +179,7 @@ impl AbstractSyntaxTree {
                     // Other operations (Plus, Multiply, And, Or)
                     // left without editing, but with transformed kids.
                     _ => Ok(AstNode::BinaryOperation {
-                        operation,
+                        operation: operation.clone(),
                         left: Box::new(transformed_left),
                         right: Box::new(transformed_right),
                     }),
@@ -190,10 +192,10 @@ impl AbstractSyntaxTree {
             } => {
                 let mut transformed_indices = vec![];
                 for index in indices {
-                    transformed_indices.push(Self::transform_recursive(index)?);
+                    transformed_indices.push(Self::transform_recursive(index.clone())?);
                 }
                 Ok(AstNode::ArrayAccess {
-                    identifier,
+                    identifier: identifier.clone(),
                     indices: transformed_indices,
                 })
             },

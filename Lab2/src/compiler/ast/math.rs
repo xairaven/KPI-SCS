@@ -50,7 +50,7 @@ impl AbstractSyntaxTree {
                             BinaryOperationKind::Multiply => left_number * right_number,
                             BinaryOperationKind::Divide => {
                                 if *right_number == 0.0 {
-                                    return Err(AstError::DivisionByZero);
+                                    return Err(AstError::DivisionByZero(node));
                                 } else {
                                     left_number / right_number
                                 }
@@ -90,7 +90,7 @@ impl AbstractSyntaxTree {
                     } else if let AstNode::Number(number) = &computed_right {
                         if number == &0.0 {
                             if BinaryOperationKind::Divide == *operation {
-                                return Err(AstError::DivisionByZero);
+                                return Err(AstError::DivisionByZero(node));
                             }
                             if BinaryOperationKind::Multiply == *operation {
                                 return Ok(AstNode::Number(0.0));
