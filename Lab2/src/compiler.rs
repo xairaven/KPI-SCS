@@ -62,7 +62,7 @@ pub fn compile(source: &str, is_pretty: bool) {
     };
     // AST Balancing
     let ast_result = ast.balance();
-    let _ast = match ast_result {
+    let ast = match ast_result {
         Ok(ast) => {
             ast::balancer::report_success(&ast);
             ast
@@ -71,6 +71,11 @@ pub fn compile(source: &str, is_pretty: bool) {
             ast::balancer::report_error(error);
             return;
         },
+    };
+    // AST Math Optimization, #3
+    let _ast = match compute_run(ast, 3) {
+        Some(ast) => ast,
+        None => return,
     };
 }
 
