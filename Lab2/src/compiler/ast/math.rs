@@ -110,6 +110,28 @@ impl AbstractSyntaxTree {
                             left: Box::new(computed_left),
                             right: Box::new(computed_right),
                         })
+                    } else if let (
+                        AstNode::Identifier(left_id),
+                        AstNode::Identifier(right_id),
+                    ) = (&computed_left, &computed_right)
+                    {
+                        if left_id.eq(right_id) {
+                            match operation {
+                                BinaryOperationKind::Minus => {
+                                    return Ok(AstNode::Number(0.0));
+                                },
+                                BinaryOperationKind::Divide => {
+                                    return Ok(AstNode::Number(1.0));
+                                },
+                                _ => {},
+                            }
+                        }
+
+                        Ok(AstNode::BinaryOperation {
+                            operation: operation.clone(),
+                            left: Box::new(computed_left),
+                            right: Box::new(computed_right),
+                        })
                     } else {
                         Ok(AstNode::BinaryOperation {
                             operation: operation.clone(),
