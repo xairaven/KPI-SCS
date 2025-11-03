@@ -67,6 +67,41 @@ impl AbstractSyntaxTree {
                                     right: Box::new(AstNode::Number(-number)),
                                 })
                             },
+                            AstNode::BinaryOperation {
+                                operation: sub_operation,
+                                left: sub_left,
+                                right: sub_right,
+                            } if sub_operation.eq(&BinaryOperationKind::Plus) => {
+                                if let AstNode::UnaryOperation {
+                                    operation: UnaryOperationKind::Minus,
+                                    expression: sub_right_pure,
+                                } = sub_right.as_ref()
+                                {
+                                    let reversed_right = AstNode::BinaryOperation {
+                                        operation: BinaryOperationKind::Plus,
+                                        left: sub_right_pure.clone(),
+                                        right: Box::new(AstNode::UnaryOperation {
+                                            operation: UnaryOperationKind::Minus,
+                                            expression: Box::new(*sub_left.clone()),
+                                        }),
+                                    };
+
+                                    return Ok(AstNode::BinaryOperation {
+                                        operation: BinaryOperationKind::Plus,
+                                        left: Box::new(transformed_left),
+                                        right: Box::new(reversed_right),
+                                    });
+                                }
+
+                                Ok(AstNode::BinaryOperation {
+                                    operation: BinaryOperationKind::Plus,
+                                    left: Box::new(transformed_left),
+                                    right: Box::new(AstNode::UnaryOperation {
+                                        operation: UnaryOperationKind::Minus,
+                                        expression: Box::new(transformed_right),
+                                    }),
+                                })
+                            },
                             _ => Ok(AstNode::BinaryOperation {
                                 operation: BinaryOperationKind::Plus,
                                 left: Box::new(transformed_left),
