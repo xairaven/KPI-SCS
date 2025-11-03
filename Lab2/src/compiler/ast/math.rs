@@ -41,6 +41,26 @@ impl AbstractSyntaxTree {
                     let computed_left = Self::compute_recursive(*left.clone())?;
                     let computed_right = Self::compute_recursive(*right.clone())?;
 
+                    // Case: (a + b) - (a + b) = 0
+                    // Or: (a + b) / (a + b) = 1
+                    if computed_left.eq(&computed_right) {
+                        match operation {
+                            BinaryOperationKind::Minus => {
+                                return Ok(AstNode::Number(0.0));
+                            },
+                            BinaryOperationKind::Divide => {
+                                if let AstNode::Number(number) = &computed_left
+                                    && *number == 0.0
+                                {
+                                    // Case: (5 - 5) / (5 - 5)
+                                    return Err(AstError::DivisionByZero(node));
+                                }
+                                return Ok(AstNode::Number(1.0));
+                            },
+                            _ => {},
+                        }
+                    }
+
                     if let (AstNode::Number(left_number), AstNode::Number(right_number)) =
                         (&computed_left, &computed_right)
                     {
@@ -103,28 +123,6 @@ impl AbstractSyntaxTree {
                         }
                         if number == &1.0 && BinaryOperationKind::Multiply == *operation {
                             return Ok(computed_left);
-                        }
-
-                        Ok(AstNode::BinaryOperation {
-                            operation: operation.clone(),
-                            left: Box::new(computed_left),
-                            right: Box::new(computed_right),
-                        })
-                    } else if let (
-                        AstNode::Identifier(left_id),
-                        AstNode::Identifier(right_id),
-                    ) = (&computed_left, &computed_right)
-                    {
-                        if left_id.eq(right_id) {
-                            match operation {
-                                BinaryOperationKind::Minus => {
-                                    return Ok(AstNode::Number(0.0));
-                                },
-                                BinaryOperationKind::Divide => {
-                                    return Ok(AstNode::Number(1.0));
-                                },
-                                _ => {},
-                            }
                         }
 
                         Ok(AstNode::BinaryOperation {
