@@ -1,0 +1,4 @@
+log_file_title = "Lab 3"
+log_format = "[$Y-$m-$D $H:$M $LEVEL] $MESSAGE"
+log_level = "INFO"
+pretty_output = false
