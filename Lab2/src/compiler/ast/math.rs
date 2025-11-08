@@ -22,10 +22,27 @@ impl AbstractSyntaxTree {
                 UnaryOperationKind::Minus => {
                     let child = Self::compute_recursive(*expression.clone())?;
                     if let AstNode::Number(number) = child {
-                        Ok(AstNode::Number(-number))
-                    } else {
-                        Ok(node)
+                        return Ok(AstNode::Number(-number));
+                    };
+
+                    if let AstNode::BinaryOperation {
+                        operation,
+                        left,
+                        right,
+                    } = child
+                        && operation == BinaryOperationKind::Minus
+                    {
+                        return Ok(AstNode::BinaryOperation {
+                            operation: BinaryOperationKind::Plus,
+                            left: Box::new(AstNode::UnaryOperation {
+                                operation: UnaryOperationKind::Minus,
+                                expression: left,
+                            }),
+                            right,
+                        });
                     }
+
+                    Ok(node)
                 },
                 UnaryOperationKind::Not => Ok(node),
             },
@@ -123,6 +140,19 @@ impl AbstractSyntaxTree {
                         }
                         if number == &1.0 && BinaryOperationKind::Multiply == *operation {
                             return Ok(computed_left);
+                        }
+
+                        if BinaryOperationKind::Minus == *operation
+                            && let AstNode::UnaryOperation {
+                                operation: UnaryOperationKind::Minus,
+                                expression: inner_expr,
+                            } = &computed_right
+                        {
+                            return Ok(AstNode::BinaryOperation {
+                                operation: BinaryOperationKind::Plus,
+                                left: Box::new(computed_left),
+                                right: inner_expr.clone(),
+                            });
                         }
 
                         Ok(AstNode::BinaryOperation {

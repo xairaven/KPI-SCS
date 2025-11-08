@@ -77,6 +77,23 @@ pub fn compile(source: &str, is_pretty: bool) {
         Some(ast) => ast,
         None => return,
     };
+    // // AST Folding
+    // let ast_result = ast.fold();
+    // let ast = match ast_result {
+    //     Ok(ast) => {
+    //         ast::folding::report_success(&ast);
+    //         ast
+    //     },
+    //     Err(error) => {
+    //         ast::folding::report_error(error);
+    //         return;
+    //     },
+    // };
+    // // AST Math Optimization, #4
+    // let _ast = match compute_run(ast, 4) {
+    //     Some(ast) => ast,
+    //     None => return,
+    // };
 }
 
 fn compute_run(tree: AbstractSyntaxTree, number: u8) -> Option<AbstractSyntaxTree> {
@@ -100,6 +117,7 @@ fn compute_run(tree: AbstractSyntaxTree, number: u8) -> Option<AbstractSyntaxTre
 
 pub mod ast {
     pub mod balancer;
+    pub mod folding;
     pub mod math;
     pub mod transform;
     pub mod tree;
