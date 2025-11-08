@@ -79,7 +79,7 @@ pub fn compile(source: &str, is_pretty: bool) {
     };
     // AST Folding
     let ast_result = ast.fold();
-    let _ast = match ast_result {
+    let ast = match ast_result {
         Ok(ast) => {
             ast::folding::report_success(&ast);
             ast
@@ -88,6 +88,11 @@ pub fn compile(source: &str, is_pretty: bool) {
             ast::folding::report_error(error);
             return;
         },
+    };
+    // AST Math Optimization, #4
+    let _ast = match compute_run(ast, 4) {
+        Some(ast) => ast,
+        None => return,
     };
 }
 
