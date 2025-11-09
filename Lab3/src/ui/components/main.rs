@@ -21,6 +21,11 @@ impl MainComponent {
 
             ui.add(egui::TextEdit::singleline(&mut self.code).desired_width(500.0));
 
+            // Clear code field
+            if ui.button("⟲").clicked() {
+                self.code = String::new();
+            }
+
             // Open File
             if ui.button("📁").clicked()
                 && let Some(path) = rfd::FileDialog::new()
