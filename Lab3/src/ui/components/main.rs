@@ -2,7 +2,6 @@ use crate::context::Context;
 use crate::errors::Error;
 use crate::io::IoError;
 use crate::ui::modals::error::ErrorModal;
-use crossbeam::channel::Sender;
 use std::fs;
 use std::path::PathBuf;
 
@@ -19,11 +18,17 @@ impl MainComponent {
         ui.horizontal(|ui| {
             ui.label("Code:");
 
-            ui.add(egui::TextEdit::singleline(&mut self.code).desired_width(500.0));
+            if ui
+                .add(egui::TextEdit::singleline(&mut self.code).desired_width(500.0))
+                .changed()
+            {
+                context.compiler.code = self.code.clone();
+            };
 
             // Clear code field
             if ui.button("⟲").clicked() {
                 self.code = String::new();
+                context.compiler.code = String::new();
             }
 
             // Open File
@@ -32,13 +37,13 @@ impl MainComponent {
                     .add_filter("text", &["txt", "xai"])
                     .pick_file()
             {
-                self.read_file(path, &context.ui.errors_tx);
+                self.read_file(path, context);
             }
 
             if let Some(path) = &self.opened_file {
                 // Reload file
                 if ui.button("↺").clicked() {
-                    self.read_file(path.clone(), &context.ui.errors_tx);
+                    self.read_file(path.clone(), context);
                 }
                 // Close file
                 if ui.button("⊗").clicked() {
@@ -54,15 +59,16 @@ impl MainComponent {
         });
     }
 
-    fn read_file(&mut self, path: PathBuf, tx: &Sender<ErrorModal>) {
+    fn read_file(&mut self, path: PathBuf, context: &mut Context) {
         match fs::read_to_string(&path) {
             Ok(text) => {
                 self.code = text;
+                context.compiler.code = self.code.clone();
                 self.opened_file = Some(path.clone());
             },
             Err(error) => {
                 let error: Error = IoError::ReadFile(error).into();
-                ErrorModal::new(error).try_send_by(tx);
+                ErrorModal::new(error).try_send_by(&context.ui.errors_tx);
             },
         }
     }
