@@ -4,8 +4,15 @@ use log::{LevelFilter, Record};
 use std::fmt::Arguments;
 use thiserror::Error;
 
-pub const DEFAULT_FORMAT: &str = "[$Y-$m-$D $H:$M $LEVEL] $MESSAGE";
-pub const DEFAULT_LOG_LEVEL: LevelFilter = LevelFilter::Off;
+pub const DEFAULT_SETTINGS: DefaultLoggerSettings = DefaultLoggerSettings {
+    format: "[$Y-$m-$D $H:$M $LEVEL] $MESSAGE",
+    log_level: LevelFilter::Off,
+};
+
+pub struct DefaultLoggerSettings {
+    pub format: &'static str,
+    pub log_level: LevelFilter,
+}
 
 pub struct Logger {
     file_title: String,
@@ -16,9 +23,9 @@ pub struct Logger {
 impl Default for Logger {
     fn default() -> Self {
         Logger {
-            file_title: ui::DEFAULT_PROJECT_TITLE.to_string(),
-            format: DEFAULT_FORMAT.to_string(),
-            log_level: DEFAULT_LOG_LEVEL,
+            file_title: ui::DEFAULT_WINDOW_SETTINGS.project_title.to_string(),
+            format: DEFAULT_SETTINGS.format.to_string(),
+            log_level: DEFAULT_SETTINGS.log_level,
         }
     }
 }

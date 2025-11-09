@@ -23,9 +23,16 @@ fn main() {
     log::info!("Starting application.");
     log::info!("Config loaded: {config:#?}");
     log::info!("Logger initialized.");
+
+    ui::start(config).unwrap_or_else(|err| {
+        log::error!("{err}");
+        std::process::exit(1);
+    });
 }
 
+pub mod compiler;
 pub mod config;
+pub mod context;
 pub mod errors;
 pub mod logs;
 pub mod ui;

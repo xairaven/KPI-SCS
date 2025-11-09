@@ -18,11 +18,11 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            log_format: logs::DEFAULT_FORMAT.to_string(),
-            log_level: logs::DEFAULT_LOG_LEVEL,
+            log_format: logs::DEFAULT_SETTINGS.format.to_string(),
+            log_level: logs::DEFAULT_SETTINGS.log_level,
             // TODO: Default pretty output value
             pretty_output: false,
-            project_title: ui::DEFAULT_PROJECT_TITLE.to_string(),
+            project_title: ui::DEFAULT_WINDOW_SETTINGS.project_title.to_string(),
         }
     }
 }
