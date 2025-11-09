@@ -26,13 +26,13 @@ impl MainComponent {
             };
 
             // Clear code field
-            if ui.button("⟲").clicked() {
+            if ui.button("⟲").on_hover_text("Clear Code Field").clicked() {
                 self.code = String::new();
                 context.compiler.code = String::new();
             }
 
             // Open File
-            if ui.button("📁").clicked()
+            if ui.button("📁").on_hover_text("Open File").clicked()
                 && let Some(path) = rfd::FileDialog::new()
                     .add_filter("text", &["txt", "xai"])
                     .pick_file()
@@ -42,11 +42,11 @@ impl MainComponent {
 
             if let Some(path) = &self.opened_file {
                 // Reload file
-                if ui.button("↺").clicked() {
+                if ui.button("↺").on_hover_text("Reload File").clicked() {
                     self.read_file(path.clone(), context);
                 }
                 // Close file
-                if ui.button("⊗").clicked() {
+                if ui.button("⊗").on_hover_text("Close File").clicked() {
                     self.opened_file = None;
                 }
             }
