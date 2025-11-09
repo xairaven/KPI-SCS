@@ -1,10 +1,15 @@
 use crate::config::Config;
 use crate::context::Context;
+use crate::ui::components::main::MainComponent;
+use crate::ui::components::side::SideComponent;
 use crate::ui::modals::Modal;
 use egui::{CentralPanel, SidePanel};
 
 pub struct App {
     context: Context,
+
+    main_component: MainComponent,
+    side_panel: SideComponent,
 
     modals: Vec<Box<dyn Modal>>,
 }
@@ -15,6 +20,10 @@ impl App {
 
         Self {
             context,
+
+            main_component: Default::default(),
+            side_panel: Default::default(),
+
             modals: vec![],
         }
     }
@@ -28,9 +37,13 @@ impl eframe::App for App {
                 .min_width(ui.available_width() / 4.0)
                 .max_width(ui.available_width() / 4.0)
                 .show_separator_line(true)
-                .show_inside(ui, |_ui| {});
+                .show_inside(ui, |ui| {
+                    self.side_panel.show(&mut self.context, ui);
+                });
 
-            CentralPanel::default().show_inside(ui, |_ui| {});
+            CentralPanel::default().show_inside(ui, |ui| {
+                self.main_component.show(&mut self.context, ui);
+            });
 
             // Getting modals from the channels (in context).
             if let Ok(modal) = self.context.ui.modals_rx.try_recv() {

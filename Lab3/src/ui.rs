@@ -51,5 +51,5 @@ pub mod modals;
 
 pub mod components {
     pub mod main;
-    pub mod side_panel;
+    pub mod side;
 }
