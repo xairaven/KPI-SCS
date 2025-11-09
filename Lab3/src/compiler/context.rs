@@ -1,3 +1,4 @@
+use crate::compiler::tokenizer::Tokenizer;
 use crate::config::Config;
 
 pub struct CompilerContext {
@@ -11,5 +12,10 @@ impl CompilerContext {
             code: String::new(),
             pretty_output: config.pretty_output,
         }
+    }
+
+    pub fn tokenize_report(&self) -> String {
+        let tokens = Tokenizer::process(&self.code);
+        Tokenizer::report(&tokens)
     }
 }

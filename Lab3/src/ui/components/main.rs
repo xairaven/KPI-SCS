@@ -15,6 +15,10 @@ pub struct MainComponent {
 
 impl MainComponent {
     pub fn show(&mut self, context: &mut Context, ui: &mut egui::Ui) {
+        if let Some(result) = context.ui.get_output() {
+            self.result = result;
+        }
+
         ui.horizontal(|ui| {
             ui.label("Code:");
 
