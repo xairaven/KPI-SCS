@@ -55,7 +55,11 @@ impl MainComponent {
         ui.separator();
 
         ui.centered_and_justified(|ui| {
-            ui.add(egui::TextEdit::multiline(&mut self.result).interactive(false));
+            ui.add(
+                egui::TextEdit::multiline(&mut self.result)
+                    .interactive(false)
+                    .code_editor(),
+            );
         });
     }
 
