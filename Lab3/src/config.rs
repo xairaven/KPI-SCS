@@ -1,4 +1,4 @@
-use crate::logs;
+use crate::{logs, ui};
 use log::LevelFilter;
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -9,20 +9,20 @@ const FILE_NAME: &str = "config.toml";
 
 #[derive(Debug)]
 pub struct Config {
-    pub log_file_title: String,
     pub log_format: String,
     pub log_level: LevelFilter,
     pub pretty_output: bool,
+    pub project_title: String,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Self {
-            log_file_title: logs::DEFAULT_FILE_TITLE.to_string(),
             log_format: logs::DEFAULT_FORMAT.to_string(),
             log_level: logs::DEFAULT_LOG_LEVEL,
             // TODO: Default pretty output value
             pretty_output: false,
+            project_title: ui::DEFAULT_PROJECT_TITLE.to_string(),
         }
     }
 }
@@ -56,10 +56,10 @@ impl Config {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ConfigDto {
-    pub log_file_title: String,
     pub log_format: String,
     pub log_level: String,
     pub pretty_output: bool,
+    pub project_title: String,
 }
 
 impl TryFrom<ConfigDto> for Config {
@@ -67,7 +67,6 @@ impl TryFrom<ConfigDto> for Config {
 
     fn try_from(value: ConfigDto) -> Result<Self, Self::Error> {
         Ok(Self {
-            log_file_title: value.log_file_title,
             log_format: value.log_format,
             log_level: match value.log_level.trim().to_lowercase().as_str() {
                 "off" => Ok(LevelFilter::Off),
@@ -79,6 +78,7 @@ impl TryFrom<ConfigDto> for Config {
                 unknown => Err(Self::Error::UnknownLogLevel(unknown.to_string())),
             }?,
             pretty_output: value.pretty_output,
+            project_title: value.project_title,
         })
     }
 }
@@ -86,10 +86,10 @@ impl TryFrom<ConfigDto> for Config {
 impl From<&Config> for ConfigDto {
     fn from(value: &Config) -> Self {
         Self {
-            log_file_title: value.log_file_title.clone(),
             log_format: value.log_format.clone(),
             log_level: value.log_level.to_string(),
             pretty_output: value.pretty_output,
+            project_title: value.project_title.clone(),
         }
     }
 }

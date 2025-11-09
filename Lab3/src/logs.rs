@@ -1,10 +1,10 @@
+use crate::ui;
 use chrono::{Datelike, Local, Timelike};
 use log::{LevelFilter, Record};
 use std::fmt::Arguments;
 use thiserror::Error;
 
 pub const DEFAULT_FORMAT: &str = "[$Y-$m-$D $H:$M $LEVEL] $MESSAGE";
-pub const DEFAULT_FILE_TITLE: &str = "Lab";
 pub const DEFAULT_LOG_LEVEL: LevelFilter = LevelFilter::Off;
 
 pub struct Logger {
@@ -16,7 +16,7 @@ pub struct Logger {
 impl Default for Logger {
     fn default() -> Self {
         Logger {
-            file_title: DEFAULT_FILE_TITLE.to_string(),
+            file_title: ui::DEFAULT_PROJECT_TITLE.to_string(),
             format: DEFAULT_FORMAT.to_string(),
             log_level: DEFAULT_LOG_LEVEL,
         }

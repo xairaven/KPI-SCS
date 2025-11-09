@@ -5,23 +5,20 @@ use crate::config::Config;
 use crate::logs::Logger;
 
 fn main() {
-    let config = match Config::from_file() {
-        Ok(value) => value,
-        Err(err) => {
-            eprintln!("Error. {err}");
-            std::process::exit(1);
-        },
-    };
+    let config = Config::from_file().unwrap_or_else(|err| {
+        eprintln!("Error. {err}");
+        std::process::exit(1);
+    });
 
-    if let Err(err) = Logger::default()
-        .with_file_title(&config.log_file_title)
+    Logger::default()
+        .with_file_title(&config.project_title)
         .with_format(&config.log_format)
         .with_level(config.log_level)
         .setup()
-    {
-        eprintln!("Error. {err}");
-        std::process::exit(1);
-    }
+        .unwrap_or_else(|err| {
+            eprintln!("Error. {err}");
+            std::process::exit(1);
+        });
 
     log::info!("Starting application.");
     log::info!("Config loaded: {config:#?}");
@@ -31,3 +28,4 @@ fn main() {
 pub mod config;
 pub mod errors;
 pub mod logs;
+pub mod ui;
