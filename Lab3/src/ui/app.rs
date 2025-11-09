@@ -3,6 +3,7 @@ use crate::context::Context;
 use crate::ui::components::main::MainComponent;
 use crate::ui::components::side::SideComponent;
 use crate::ui::modals::Modal;
+use crate::ui::modals::error::ErrorModal;
 use egui::{CentralPanel, SidePanel};
 
 pub struct App {
@@ -11,7 +12,7 @@ pub struct App {
     main_component: MainComponent,
     side_panel: SideComponent,
 
-    modals: Vec<Box<dyn Modal>>,
+    errors: Vec<ErrorModal>,
 }
 
 impl App {
@@ -24,7 +25,7 @@ impl App {
             main_component: Default::default(),
             side_panel: Default::default(),
 
-            modals: vec![],
+            errors: vec![],
         }
     }
 }
@@ -46,8 +47,8 @@ impl eframe::App for App {
             });
 
             // Getting modals from the channels (in context).
-            if let Ok(modal) = self.context.ui.modals_rx.try_recv() {
-                self.modals.push(modal);
+            if let Ok(modal) = self.context.ui.errors_rx.try_recv() {
+                self.errors.push(modal);
             }
 
             // Showing modals.
@@ -62,7 +63,7 @@ impl App {
     fn show_opened_modals(&mut self, ui: &egui::Ui) {
         let mut closed_modals: Vec<usize> = vec![];
 
-        for (index, modal) in self.modals.iter_mut().enumerate() {
+        for (index, modal) in self.errors.iter_mut().enumerate() {
             modal.show(ui, &mut self.context);
 
             if modal.is_closed() {
@@ -71,7 +72,7 @@ impl App {
         }
 
         closed_modals.iter().for_each(|index| {
-            self.modals.remove(*index);
+            self.errors.remove(*index);
         });
     }
 }

@@ -1,19 +1,19 @@
 use crate::config::Config;
-use crate::ui::modals::Modal;
+use crate::ui::modals::error::ErrorModal;
 use crossbeam::channel::{Receiver, Sender, unbounded};
 
 pub struct UIContext {
-    pub modals_tx: Sender<Box<dyn Modal>>,
-    pub modals_rx: Receiver<Box<dyn Modal>>,
+    pub errors_tx: Sender<ErrorModal>,
+    pub errors_rx: Receiver<ErrorModal>,
 }
 
 impl UIContext {
     pub fn new(_: &Config) -> Self {
-        let (modals_tx, modals_rx) = unbounded::<Box<dyn Modal>>();
+        let (errors_tx, errors_rx) = unbounded::<ErrorModal>();
 
         Self {
-            modals_tx,
-            modals_rx,
+            errors_tx,
+            errors_rx,
         }
     }
 }

@@ -34,5 +34,6 @@ pub mod compiler;
 pub mod config;
 pub mod context;
 pub mod errors;
+pub mod io;
 pub mod logs;
 pub mod ui;

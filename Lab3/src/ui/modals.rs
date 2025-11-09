@@ -60,3 +60,5 @@ pub trait Modal: Send + Sync {
     fn close(&mut self);
     fn modal_fields(&self) -> &ModalFields;
 }
+
+pub mod error;

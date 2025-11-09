@@ -1,23 +1,12 @@
 use crate::context::Context;
-use crate::ui::styles;
-use egui::RichText;
 
 #[derive(Default)]
-pub struct TabsComponent;
+pub struct FunctionsComponent;
 
-impl TabsComponent {
+impl FunctionsComponent {
     pub fn show(&self, _context: &mut Context, ui: &mut egui::Ui) {
         ui.vertical_centered(|ui| {
-            ui.heading("Tabs");
-        });
-
-        ui.add_space(10.0);
-
-        ui.vertical_centered_justified(|ui| {
-            if ui
-                .button(RichText::new("RUN").color(styles::colors::GREEN))
-                .clicked()
-            {}
+            ui.heading("Run:");
         });
 
         ui.add_space(10.0);
