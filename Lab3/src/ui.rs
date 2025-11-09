@@ -48,8 +48,12 @@ pub fn start(config: Config) -> eframe::Result {
 pub mod app;
 pub mod context;
 pub mod modals;
+pub mod styles;
 
 pub mod components {
     pub mod main;
     pub mod side;
+
+    pub mod settings;
+    pub mod tabs;
 }
