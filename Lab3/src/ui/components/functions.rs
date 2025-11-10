@@ -17,7 +17,10 @@ impl FunctionsComponent {
                 context.ui.set_output(report);
             }
 
-            if ui.button("Syntax check").clicked() {}
+            if ui.button("Syntax check").clicked() {
+                let report = context.compiler.syntax_report();
+                context.ui.set_output(report);
+            }
 
             if ui.button("AST").clicked() {}
 

@@ -1,3 +1,4 @@
+use crate::compiler::syntax::{SyntaxAnalyzer, SyntaxReporter};
 use crate::compiler::tokenizer::Tokenizer;
 use crate::config::Config;
 
@@ -17,5 +18,11 @@ impl CompilerContext {
     pub fn tokenize_report(&self) -> String {
         let tokens = Tokenizer::process(&self.code);
         Tokenizer::report(&tokens)
+    }
+
+    pub fn syntax_report(&self) -> String {
+        let tokens = Tokenizer::process(&self.code);
+        let syntax_errors = SyntaxAnalyzer::new(&tokens).analyze();
+        SyntaxReporter::new(&self.code, &syntax_errors, self.pretty_output).report()
     }
 }
