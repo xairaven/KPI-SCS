@@ -19,3 +19,19 @@ impl StringExtension for String {
         }
     }
 }
+
+#[derive(Default)]
+pub struct Reporter {
+    buffer: String,
+}
+
+impl Reporter {
+    pub fn add_line(&mut self, line: String) {
+        self.buffer.push_str(&line);
+        self.buffer.push('\n');
+    }
+
+    pub fn get_report(self) -> String {
+        self.buffer
+    }
+}

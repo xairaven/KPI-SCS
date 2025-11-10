@@ -560,8 +560,8 @@ impl<'a> SyntaxReporter<'a> {
         let mut result = String::new();
 
         let first_line = match self.errors.len() {
-            0 => "Lexical & syntax analysis: OK!\n\n".to_string(),
-            n => format!("Tokenization & syntax analysis: Found {} errors.\n\n", n),
+            0 => "Tokenization & syntax analysis: OK!\n\n".to_string(),
+            n => format!("Syntax analysis: Found {} errors.\n\n", n),
         };
         result.push_str(&first_line);
 

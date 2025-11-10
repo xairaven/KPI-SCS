@@ -22,6 +22,11 @@ impl FunctionsComponent {
                 context.ui.set_output(report);
             }
 
+            if ui.button("Create Lexemes").clicked() {
+                let report = context.compiler.lexer_report();
+                context.ui.set_output(report);
+            }
+
             if ui.button("AST").clicked() {}
 
             if ui.button("Balance AST").clicked() {}
