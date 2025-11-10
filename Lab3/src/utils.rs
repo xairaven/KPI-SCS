@@ -26,6 +26,10 @@ pub struct StringBuffer {
 }
 
 impl StringBuffer {
+    pub fn add(&mut self, str: String) {
+        self.buffer.push_str(&str);
+    }
+
     pub fn add_line(&mut self, line: String) {
         self.buffer.push_str(&line);
         self.buffer.push('\n');

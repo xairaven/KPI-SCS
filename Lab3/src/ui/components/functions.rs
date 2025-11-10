@@ -27,7 +27,10 @@ impl FunctionsComponent {
                 context.ui.set_output(report);
             }
 
-            if ui.button("AST").clicked() {}
+            if ui.button("Build AST").clicked() {
+                let report = context.compiler.ast_report();
+                context.ui.set_output(report);
+            }
 
             if ui.button("Balance AST").clicked() {}
         });
