@@ -95,12 +95,6 @@ impl std::fmt::Display for SyntaxError {
     }
 }
 
-impl SyntaxError {
-    pub fn display(&self) -> String {
-        format!("{:50} {}", self.to_string(), self.token.display_position())
-    }
-}
-
 #[derive(Debug, Default)]
 pub struct Status {
     pub expect_operand: bool,
@@ -617,14 +611,18 @@ impl<'a> SyntaxReporter<'a> {
             for index in (error.token.position.start + 1)..(length + 1) {
                 line.replace_char(index, '_');
             }
-            line.push_str(&error.display());
+            line.push_str(&error.to_string());
             result.push_str(&format!("{}\n", line));
         }
     }
 
     fn format_errors(&self, result: &mut String) {
         for error in self.errors {
-            let error = format!("{}\n", error.display());
+            let error = format!(
+                "{:50} {}\n",
+                error.to_string(),
+                error.token.display_position()
+            );
             result.push_str(&error);
         }
     }
