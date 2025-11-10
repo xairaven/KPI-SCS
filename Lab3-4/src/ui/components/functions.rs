@@ -55,6 +55,10 @@ impl FunctionsComponent {
             if ui.button("Compute AST #4").clicked() {
                 context.ui.set_output(context.compiler.compute_4_report());
             }
+
+            ui.separator();
+
+            if ui.button("Equivalent Forms").clicked() {}
         });
     }
 }

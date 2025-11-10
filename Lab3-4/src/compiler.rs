@@ -11,4 +11,9 @@ pub mod ast {
     pub mod tree;
 }
 
+pub mod laws {
+    pub mod associative;
+    pub mod distributive;
+}
+
 pub mod reports;

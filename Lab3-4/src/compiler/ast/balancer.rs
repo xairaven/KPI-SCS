@@ -103,7 +103,7 @@ impl AbstractSyntaxTree {
     /// Recursively "unfolds" a chain of associative operations
     /// into a flat list. For example, the tree `(a + (b + c)) + d`
     /// with `op_kind = Plus` will be "flattened" into the list `[a, b, c, d]`.
-    fn collect_operands(
+    pub fn collect_operands(
         node: AstNode, op_kind: BinaryOperationKind, operands: &mut Vec<AstNode>,
     ) {
         match node {
@@ -132,7 +132,7 @@ impl AbstractSyntaxTree {
     /// a binary tree of minimal height using a queue-based algorithm.
     /// For example, `[a, b, c, d, e]` becomes `((a + b) + (c + d)) + e`
     /// (or a similar balanced structure).
-    fn build_balanced_tree(
+    pub fn build_balanced_tree(
         operands: Vec<AstNode>, op_kind: BinaryOperationKind,
     ) -> Result<AstNode, AstError> {
         if operands.is_empty() {
