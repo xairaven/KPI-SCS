@@ -133,7 +133,6 @@ impl Reporter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::compiler::ast;
     use crate::compiler::ast::tree::AstNode::{
         BinaryOperation, Identifier, Number, UnaryOperation,
     };
