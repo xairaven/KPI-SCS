@@ -59,11 +59,13 @@ impl MainComponent {
         ui.separator();
 
         ui.centered_and_justified(|ui| {
-            ui.add(
-                egui::TextEdit::multiline(&mut self.result)
-                    .interactive(false)
-                    .code_editor(),
-            );
+            egui::ScrollArea::vertical().show(ui, |ui| {
+                ui.add(
+                    egui::TextEdit::multiline(&mut self.result)
+                        .interactive(false)
+                        .code_editor(),
+                );
+            });
         });
     }
 
