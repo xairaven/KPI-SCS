@@ -1,5 +1,5 @@
 use crate::compiler::tokenizer::{Token, TokenType};
-use crate::utils::Reporter;
+use crate::utils::StringBuffer;
 use std::num::ParseFloatError;
 
 #[derive(Debug)]
@@ -161,25 +161,25 @@ pub struct LexerReporter;
 
 impl LexerReporter {
     pub fn report(lexemes_result: &Result<Vec<Lexeme>, LexerError>) -> String {
-        let mut reporter = Reporter::default();
+        let mut buffer = StringBuffer::default();
 
         match lexemes_result {
             Ok(lexemes) => {
                 let first_line =
                     format!("Lexer successfully produced {} lexemes.\n", lexemes.len());
-                reporter.add_line(first_line);
+                buffer.add_line(first_line);
 
                 let lexemes_list = lexemes
                     .iter()
                     .map(|lexeme| format!("- {:?}", lexeme))
                     .collect::<Vec<String>>()
                     .join("\n");
-                reporter.add_line(lexemes_list);
+                buffer.add_line(lexemes_list);
             },
-            Err(error) => reporter.add_line(format!("Lexer error: {}", error)),
+            Err(error) => buffer.add_line(format!("Lexer error: {}", error)),
         }
 
-        reporter.get_report()
+        buffer.get()
     }
 }
 

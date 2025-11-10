@@ -1,3 +1,4 @@
+use crate::utils::StringBuffer;
 use std::ops::Range;
 use strum_macros::Display;
 
@@ -200,10 +201,12 @@ impl Tokenizer {
     }
 
     pub fn report(tokens: &[Token]) -> String {
-        let mut result = String::from("Tokenize: Success!\n\n");
+        let mut buffer = StringBuffer::default();
+
+        buffer.add_line("Tokenize: Success!\n".to_string());
         for (index, token) in tokens.iter().enumerate() {
-            result.push_str(&format!(
-                "{:3}) {:20}: {:20} {}\n",
+            buffer.add_line(format!(
+                "{:3}) {:20}: {:20} {}",
                 index + 1,
                 token.kind,
                 token.display_value(),
@@ -211,7 +214,7 @@ impl Tokenizer {
             ));
         }
 
-        result
+        buffer.get()
     }
 }
 

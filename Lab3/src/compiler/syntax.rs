@@ -1,5 +1,5 @@
 use crate::compiler::tokenizer::{Token, TokenType};
-use crate::utils::StringExtension;
+use crate::utils::{StringBuffer, StringExtension};
 use std::collections::VecDeque;
 
 #[derive(Debug)]
@@ -557,29 +557,29 @@ impl<'a> SyntaxReporter<'a> {
     }
 
     pub fn report(&self) -> String {
-        let mut result = String::new();
+        let mut buffer = StringBuffer::default();
 
         let first_line = match self.errors.len() {
-            0 => "Tokenization & syntax analysis: OK!\n\n".to_string(),
-            n => format!("Syntax analysis: Found {} errors.\n\n", n),
+            0 => "Tokenization & syntax analysis: OK!\n".to_string(),
+            n => format!("Syntax analysis: Found {} errors.\n", n),
         };
-        result.push_str(&first_line);
+        buffer.add_line(first_line);
 
         if self.errors.is_empty() {
-            return result;
+            return buffer.get();
         }
 
         match self.pretty_output {
-            true => self.format_errors_pretty(&mut result),
-            false => self.format_errors(&mut result),
+            true => self.format_errors_pretty(&mut buffer),
+            false => self.format_errors(&mut buffer),
         };
 
-        result
+        buffer.get()
     }
 
-    fn format_errors_pretty(&self, result: &mut String) {
-        let code = format!("\n{}\n\n", self.code);
-        result.push_str(&code);
+    fn format_errors_pretty(&self, buffer: &mut StringBuffer) {
+        let code = format!("\n{}", self.code);
+        buffer.add_line(code);
 
         // First line: Underlines
         let length = self.code.len();
@@ -599,7 +599,7 @@ impl<'a> SyntaxReporter<'a> {
                 first_line.replace_char(error.token.position.end - 1, '^');
             }
         }
-        result.push_str(&format!("{}\n", first_line));
+        buffer.add_line(first_line);
 
         // Other lines
         for error in self.errors.iter().rev() {
@@ -612,18 +612,18 @@ impl<'a> SyntaxReporter<'a> {
                 line.replace_char(index, '_');
             }
             line.push_str(&error.to_string());
-            result.push_str(&format!("{}\n", line));
+            buffer.add_line(line);
         }
     }
 
-    fn format_errors(&self, result: &mut String) {
+    fn format_errors(&self, buffer: &mut StringBuffer) {
         for error in self.errors {
             let error = format!(
-                "{:50} {}\n",
+                "{:50} {}",
                 error.to_string(),
                 error.token.display_position()
             );
-            result.push_str(&error);
+            buffer.add_line(error);
         }
     }
 }

@@ -21,17 +21,17 @@ impl StringExtension for String {
 }
 
 #[derive(Default)]
-pub struct Reporter {
+pub struct StringBuffer {
     buffer: String,
 }
 
-impl Reporter {
+impl StringBuffer {
     pub fn add_line(&mut self, line: String) {
         self.buffer.push_str(&line);
         self.buffer.push('\n');
     }
 
-    pub fn get_report(self) -> String {
+    pub fn get(self) -> String {
         self.buffer
     }
 }
