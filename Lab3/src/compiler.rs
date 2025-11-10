@@ -10,3 +10,5 @@ pub mod ast {
     pub mod transform;
     pub mod tree;
 }
+
+pub mod reports;

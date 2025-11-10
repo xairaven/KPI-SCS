@@ -1,6 +1,7 @@
 use crate::compiler::ast::tree::{
     AbstractSyntaxTree, AstError, AstNode, BinaryOperationKind, UnaryOperationKind,
 };
+use crate::compiler::reports::Reporter;
 use crate::utils::StringBuffer;
 
 impl AbstractSyntaxTree {
@@ -207,10 +208,10 @@ impl AbstractSyntaxTree {
     }
 }
 
-pub struct AstComputerReporter;
-
-impl AstComputerReporter {
-    pub fn report(result: &Result<AbstractSyntaxTree, AstError>, run: u8) -> String {
+impl Reporter {
+    pub fn computing(
+        &self, result: &Result<AbstractSyntaxTree, AstError>, run: u8,
+    ) -> String {
         let mut buffer = StringBuffer::default();
 
         match result {
@@ -230,7 +231,7 @@ impl AstComputerReporter {
         buffer.get()
     }
 
-    pub fn report_finalization() -> String {
+    pub fn computing_finalization(&self) -> String {
         String::from(
             "Tree is fully solved by computation. Further optimization is not needed",
         )

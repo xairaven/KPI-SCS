@@ -1,10 +1,7 @@
-use crate::compiler::ast::balancer::AstBalancerReporter;
-use crate::compiler::ast::folding::AstFolderReporter;
-use crate::compiler::ast::math::AstComputerReporter;
-use crate::compiler::ast::transform::AstTransformerReporter;
-use crate::compiler::ast::tree::{AbstractSyntaxTree, AstError, AstParser, AstReporter};
-use crate::compiler::lexer::{Lexeme, Lexer, LexerError, LexerReporter};
-use crate::compiler::syntax::{SyntaxAnalyzer, SyntaxError, SyntaxReporter};
+use crate::compiler::ast::tree::{AbstractSyntaxTree, AstError, AstParser};
+use crate::compiler::lexer::{Lexeme, Lexer, LexerError};
+use crate::compiler::reports::Reporter;
+use crate::compiler::syntax::{SyntaxAnalyzer, SyntaxError};
 use crate::compiler::tokenizer::{Token, Tokenizer};
 use crate::config::Config;
 
@@ -35,19 +32,14 @@ impl CompilerContext {
     }
 
     pub fn syntax_report(&self) -> String {
-        SyntaxReporter::new(&self.code, &self.check_syntax(), self.pretty_output).report()
+        Reporter.syntax(&self.code, self.pretty_output, &self.check_syntax())
     }
 
     fn create_lexemes(&self) -> Result<Result<Vec<Lexeme>, LexerError>, String> {
         let tokens = self.tokenize();
         let syntax_errors = self.check_syntax();
         if !syntax_errors.is_empty() {
-            return Err(SyntaxReporter::new(
-                &self.code,
-                &syntax_errors,
-                self.pretty_output,
-            )
-            .report());
+            return Err(self.syntax_report());
         }
         let lexemes = Lexer::new(tokens).run();
         Ok(lexemes)
@@ -55,7 +47,7 @@ impl CompilerContext {
 
     pub fn lexer_report(&self) -> String {
         match self.create_lexemes() {
-            Ok(lexer_result) => LexerReporter::report(&lexer_result),
+            Ok(lexer_result) => Reporter.lexemes_creation(&lexer_result),
             Err(syntax_error) => syntax_error,
         }
     }
@@ -64,7 +56,7 @@ impl CompilerContext {
         let lexer_result = self.create_lexemes()?;
         let lexemes = match lexer_result {
             Ok(value) => value,
-            Err(_) => return Err(LexerReporter::report(&lexer_result)),
+            Err(_) => return Err(Reporter.lexemes_creation(&lexer_result)),
         };
 
         Ok(AstParser::new(lexemes).parse())
@@ -72,7 +64,7 @@ impl CompilerContext {
 
     pub fn ast_report(&self) -> String {
         match self.create_ast() {
-            Ok(ast_result) => AstReporter::report(&ast_result),
+            Ok(ast_result) => Reporter.tree_build(&ast_result),
             Err(error) => error,
         }
     }
@@ -81,7 +73,7 @@ impl CompilerContext {
         let ast_creation_result = self.create_ast()?;
         let ast = match ast_creation_result {
             Ok(value) => value,
-            Err(_) => return Err(AstReporter::report(&ast_creation_result)),
+            Err(_) => return Err(Reporter.tree_build(&ast_creation_result)),
         };
 
         Ok(ast.compute())
@@ -89,7 +81,7 @@ impl CompilerContext {
 
     pub fn compute_1_report(&self) -> String {
         match self.compute_ast_1() {
-            Ok(compute_result) => AstComputerReporter::report(&compute_result, 1),
+            Ok(compute_result) => Reporter.computing(&compute_result, 1),
             Err(error) => error,
         }
     }
@@ -98,11 +90,11 @@ impl CompilerContext {
         let ast_compute_result = self.compute_ast_1()?;
         let ast = match ast_compute_result {
             Ok(value) => value,
-            Err(_) => return Err(AstComputerReporter::report(&ast_compute_result, 1)),
+            Err(_) => return Err(Reporter.computing(&ast_compute_result, 1)),
         };
 
         if ast.is_finalized() {
-            return Err(AstComputerReporter::report_finalization());
+            return Err(Reporter.computing_finalization());
         }
 
         Ok(ast.transform())
@@ -110,7 +102,7 @@ impl CompilerContext {
 
     pub fn transform_report(&self) -> String {
         match self.transform_ast() {
-            Ok(transform_result) => AstTransformerReporter::report(&transform_result),
+            Ok(transform_result) => Reporter.transforming(&transform_result),
             Err(error) => error,
         }
     }
@@ -120,7 +112,7 @@ impl CompilerContext {
         let ast = match ast_transformation_result {
             Ok(value) => value,
             Err(_) => {
-                return Err(AstTransformerReporter::report(&ast_transformation_result));
+                return Err(Reporter.transforming(&ast_transformation_result));
             },
         };
 
@@ -129,7 +121,7 @@ impl CompilerContext {
 
     pub fn compute_2_report(&self) -> String {
         match self.compute_ast_2() {
-            Ok(compute_result) => AstComputerReporter::report(&compute_result, 2),
+            Ok(compute_result) => Reporter.computing(&compute_result, 2),
             Err(error) => error,
         }
     }
@@ -138,11 +130,11 @@ impl CompilerContext {
         let ast_compute_result = self.compute_ast_2()?;
         let ast = match ast_compute_result {
             Ok(value) => value,
-            Err(_) => return Err(AstComputerReporter::report(&ast_compute_result, 2)),
+            Err(_) => return Err(Reporter.computing(&ast_compute_result, 2)),
         };
 
         if ast.is_finalized() {
-            return Err(AstComputerReporter::report_finalization());
+            return Err(Reporter.computing_finalization());
         }
 
         Ok(ast.balance())
@@ -150,7 +142,7 @@ impl CompilerContext {
 
     pub fn balance_report(&self) -> String {
         match self.balance_ast() {
-            Ok(balance_result) => AstBalancerReporter::report(&balance_result),
+            Ok(balance_result) => Reporter.balancing(&balance_result),
             Err(error) => error,
         }
     }
@@ -159,7 +151,7 @@ impl CompilerContext {
         let ast_balance_result = self.balance_ast()?;
         let ast = match ast_balance_result {
             Ok(value) => value,
-            Err(_) => return Err(AstBalancerReporter::report(&ast_balance_result)),
+            Err(_) => return Err(Reporter.balancing(&ast_balance_result)),
         };
 
         Ok(ast.compute())
@@ -167,7 +159,7 @@ impl CompilerContext {
 
     pub fn compute_3_report(&self) -> String {
         match self.compute_ast_3() {
-            Ok(compute_result) => AstComputerReporter::report(&compute_result, 3),
+            Ok(compute_result) => Reporter.computing(&compute_result, 3),
             Err(error) => error,
         }
     }
@@ -176,11 +168,11 @@ impl CompilerContext {
         let ast_compute_result = self.compute_ast_3()?;
         let ast = match ast_compute_result {
             Ok(value) => value,
-            Err(_) => return Err(AstComputerReporter::report(&ast_compute_result, 3)),
+            Err(_) => return Err(Reporter.computing(&ast_compute_result, 3)),
         };
 
         if ast.is_finalized() {
-            return Err(AstComputerReporter::report_finalization());
+            return Err(Reporter.computing_finalization());
         }
 
         Ok(ast.fold())
@@ -188,7 +180,7 @@ impl CompilerContext {
 
     pub fn folding_report(&self) -> String {
         match self.folding_ast() {
-            Ok(folding_result) => AstFolderReporter::report(&folding_result),
+            Ok(folding_result) => Reporter.folding(&folding_result),
             Err(error) => error,
         }
     }
@@ -197,7 +189,7 @@ impl CompilerContext {
         let ast_folding_result = self.folding_ast()?;
         let ast = match ast_folding_result {
             Ok(value) => value,
-            Err(_) => return Err(AstFolderReporter::report(&ast_folding_result)),
+            Err(_) => return Err(Reporter.folding(&ast_folding_result)),
         };
 
         Ok(ast.compute())
@@ -205,7 +197,7 @@ impl CompilerContext {
 
     pub fn compute_4_report(&self) -> String {
         match self.compute_ast_4() {
-            Ok(compute_result) => AstComputerReporter::report(&compute_result, 4),
+            Ok(compute_result) => Reporter.computing(&compute_result, 4),
             Err(error) => error,
         }
     }

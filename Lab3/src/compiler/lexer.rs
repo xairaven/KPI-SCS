@@ -1,3 +1,4 @@
+use crate::compiler::reports::Reporter;
 use crate::compiler::tokenizer::{Token, TokenType};
 use crate::utils::StringBuffer;
 use std::num::ParseFloatError;
@@ -157,10 +158,10 @@ impl Lexer {
     }
 }
 
-pub struct LexerReporter;
-
-impl LexerReporter {
-    pub fn report(lexemes_result: &Result<Vec<Lexeme>, LexerError>) -> String {
+impl Reporter {
+    pub fn lexemes_creation(
+        &self, lexemes_result: &Result<Vec<Lexeme>, LexerError>,
+    ) -> String {
         let mut buffer = StringBuffer::default();
 
         match lexemes_result {

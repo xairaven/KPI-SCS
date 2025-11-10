@@ -1,6 +1,7 @@
 use crate::compiler::ast::tree::{
     AbstractSyntaxTree, AstError, AstNode, BinaryOperationKind, UnaryOperationKind,
 };
+use crate::compiler::reports::Reporter;
 use crate::utils::StringBuffer;
 
 impl AbstractSyntaxTree {
@@ -223,10 +224,8 @@ impl AbstractSyntaxTree {
     }
 }
 
-pub struct AstTransformerReporter;
-
-impl AstTransformerReporter {
-    pub fn report(result: &Result<AbstractSyntaxTree, AstError>) -> String {
+impl Reporter {
+    pub fn transforming(&self, result: &Result<AbstractSyntaxTree, AstError>) -> String {
         let mut buffer = StringBuffer::default();
 
         match result {

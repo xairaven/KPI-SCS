@@ -1,4 +1,5 @@
 use crate::compiler::lexer::Lexeme;
+use crate::compiler::reports::Reporter;
 use crate::utils::StringBuffer;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -352,10 +353,8 @@ impl AstParser {
     }
 }
 
-pub struct AstReporter;
-
-impl AstReporter {
-    pub fn report(result: &Result<AbstractSyntaxTree, AstError>) -> String {
+impl Reporter {
+    pub fn tree_build(&self, result: &Result<AbstractSyntaxTree, AstError>) -> String {
         let mut buffer = StringBuffer::default();
 
         match result {

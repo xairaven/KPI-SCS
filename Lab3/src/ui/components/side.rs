@@ -8,7 +8,7 @@ pub struct SideComponent;
 impl SideComponent {
     pub fn show(&self, context: &mut Context, ui: &mut egui::Ui) {
         egui::ScrollArea::vertical().show(ui, |ui| {
-            FunctionsComponent::default().show(context, ui);
+            FunctionsComponent.show(context, ui);
 
             ui.add_space(10.0);
 
@@ -16,7 +16,7 @@ impl SideComponent {
 
             ui.add_space(10.0);
 
-            SettingsComponent::default().show(context, ui);
+            SettingsComponent.show(context, ui);
         });
     }
 }

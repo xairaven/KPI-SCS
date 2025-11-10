@@ -1,6 +1,7 @@
 use crate::compiler::ast::tree::{
     AbstractSyntaxTree, AstError, AstNode, BinaryOperationKind,
 };
+use crate::compiler::reports::Reporter;
 use crate::utils::StringBuffer;
 use std::collections::VecDeque;
 
@@ -180,10 +181,8 @@ impl AbstractSyntaxTree {
     }
 }
 
-pub struct AstBalancerReporter;
-
-impl AstBalancerReporter {
-    pub fn report(result: &Result<AbstractSyntaxTree, AstError>) -> String {
+impl Reporter {
+    pub fn balancing(&self, result: &Result<AbstractSyntaxTree, AstError>) -> String {
         let mut buffer = StringBuffer::default();
 
         match result {

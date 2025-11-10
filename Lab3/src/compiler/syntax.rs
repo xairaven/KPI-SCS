@@ -1,3 +1,4 @@
+use crate::compiler::reports::Reporter;
 use crate::compiler::tokenizer::{Token, TokenType};
 use crate::utils::{StringBuffer, StringExtension};
 use std::collections::VecDeque;
@@ -541,50 +542,39 @@ impl SyntaxAnalyzer {
     }
 }
 
-pub struct SyntaxReporter<'a> {
-    code: &'a str,
-    pretty_output: bool,
-    errors: &'a [SyntaxError],
-}
-
-impl<'a> SyntaxReporter<'a> {
-    pub fn new(code: &'a str, errors: &'a [SyntaxError], pretty_output: bool) -> Self {
-        Self {
-            code,
-            pretty_output,
-            errors,
-        }
-    }
-
-    pub fn report(&self) -> String {
+impl Reporter {
+    pub fn syntax(
+        &self, code: &str, pretty_output: bool, syntax_errors: &[SyntaxError],
+    ) -> String {
         let mut buffer = StringBuffer::default();
 
-        let first_line = match self.errors.len() {
+        let first_line = match syntax_errors.len() {
             0 => "Tokenization & syntax analysis: OK!\n".to_string(),
             n => format!("Syntax analysis: Found {} errors.\n", n),
         };
         buffer.add_line(first_line);
 
-        if self.errors.is_empty() {
+        if syntax_errors.is_empty() {
             return buffer.get();
         }
 
-        match self.pretty_output {
-            true => self.format_errors_pretty(&mut buffer),
-            false => self.format_errors(&mut buffer),
+        match pretty_output {
+            true => self.format_errors_pretty(&mut buffer, code, syntax_errors),
+            false => self.format_errors(&mut buffer, syntax_errors),
         };
 
         buffer.get()
     }
 
-    fn format_errors_pretty(&self, buffer: &mut StringBuffer) {
-        let code = format!("\n{}", self.code);
-        buffer.add_line(code);
+    fn format_errors_pretty(
+        &self, buffer: &mut StringBuffer, code: &str, syntax_errors: &[SyntaxError],
+    ) {
+        buffer.add_line(format!("\n{}", code));
 
         // First line: Underlines
-        let length = self.code.len();
+        let length = code.len();
         let mut first_line = " ".repeat(length);
-        for error in self.errors {
+        for error in syntax_errors {
             let underline_length = error.token.position.end - error.token.position.start;
             if underline_length == 1 {
                 first_line.replace_char(error.token.position.start, '^');
@@ -602,10 +592,10 @@ impl<'a> SyntaxReporter<'a> {
         buffer.add_line(first_line);
 
         // Other lines
-        for error in self.errors.iter().rev() {
+        for error in syntax_errors.iter().rev() {
             // One for -, another one for \n
             let mut line = " ".repeat(length + 2);
-            for error in self.errors.iter() {
+            for error in syntax_errors.iter() {
                 line.replace_char(error.token.position.start, '|');
             }
             for index in (error.token.position.start + 1)..(length + 1) {
@@ -616,8 +606,8 @@ impl<'a> SyntaxReporter<'a> {
         }
     }
 
-    fn format_errors(&self, buffer: &mut StringBuffer) {
-        for error in self.errors {
+    fn format_errors(&self, buffer: &mut StringBuffer, syntax_errors: &[SyntaxError]) {
+        for error in syntax_errors {
             let error = format!(
                 "{:50} {}",
                 error.to_string(),
