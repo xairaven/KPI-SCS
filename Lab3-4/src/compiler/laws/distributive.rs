@@ -1,114 +1,168 @@
-// File: Lab3-4/src/compiler/ast/distributive.rs
+use crate::compiler::ast::tree::{AbstractSyntaxTree, AstNode, BinaryOperationKind};
 
-use crate::compiler::ast::tree::{
-    AbstractSyntaxTree, AstError, AstNode, BinaryOperationKind,
-};
+// New type alias for node path
+// 0 = left, 1 = right, 2 = expression (for Unary)
+type NodePath = Vec<u8>;
 
 impl AbstractSyntaxTree {
-    /// Applies the distributive law (expanding brackets).
-    /// e.g., a*(b+c) -> a*b + a*c
-    pub fn expand(self) -> Result<AbstractSyntaxTree, AstError> {
-        let peek = Self::expand_recursive(self.peek)?;
-        Ok(Self::from_node(peek))
+    /// Returns a vector of AbstractSyntaxTree, each representing a single-step expansion.
+    pub fn get_all_single_step_expansions(&self) -> Vec<AbstractSyntaxTree> {
+        let mut expandable_nodes_paths: Vec<NodePath> = Vec::new();
+        // 1. Find all expandable nodes' paths
+        Self::find_expandable_nodes_recursive(
+            &self.peek,
+            &mut vec![],
+            &mut expandable_nodes_paths,
+        );
+
+        let mut all_forms = Vec::new();
+
+        // 2. For each found path...
+        for path in expandable_nodes_paths {
+            let mut new_tree = self.clone();
+            if let Some(target_node) =
+                Self::get_node_mut_by_path(&mut new_tree.peek, &path)
+            {
+                // `perform_expansion` replaces the node with its unfolded form
+                *target_node = Self::perform_expansion(target_node.clone());
+            }
+            all_forms.push(new_tree);
+        }
+
+        all_forms
     }
 
-    /// A recursive helper that traverses the tree bottom-up (post-order).
-    fn expand_recursive(node: AstNode) -> Result<AstNode, AstError> {
+    /// Recursively finds nodes matching the pattern `A * (B +/- C)` or `(A +/- B) * C`
+    fn find_expandable_nodes_recursive(
+        node: &AstNode, path: &mut NodePath, paths: &mut Vec<NodePath>,
+    ) {
+        if let AstNode::BinaryOperation {
+            operation: BinaryOperationKind::Multiply,
+            left,
+            right,
+        } = node
+        {
+            // Pattern 1: (A +/- B) * C
+            if let AstNode::BinaryOperation { operation: op, .. } = left.as_ref()
+                && (*op == BinaryOperationKind::Plus || *op == BinaryOperationKind::Minus)
+            {
+                paths.push(path.clone());
+            }
+            // Pattern 2: A * (B +/- C)
+            if let AstNode::BinaryOperation { operation: op, .. } = right.as_ref()
+                && (*op == BinaryOperationKind::Plus || *op == BinaryOperationKind::Minus)
+            {
+                paths.push(path.clone());
+            }
+        }
+
+        // Recursive traversal
         match node {
-            // 1. Recursively process children first (post-order traversal)
-            AstNode::BinaryOperation {
-                operation,
+            AstNode::BinaryOperation { left, right, .. } => {
+                path.push(0); // 0 = left
+                Self::find_expandable_nodes_recursive(left, path, paths);
+                path.pop();
+
+                path.push(1); // 1 = right
+                Self::find_expandable_nodes_recursive(right, path, paths);
+                path.pop();
+            },
+            AstNode::UnaryOperation { expression, .. } => {
+                path.push(2); // 2 = expression
+                Self::find_expandable_nodes_recursive(expression, path, paths);
+                path.pop();
+            },
+            // Basic cases: nowhere to go
+            _ => {},
+        }
+    }
+
+    /// Helper function to get mutable reference to a node by path
+    pub fn get_node_mut_by_path<'a>(
+        node: &'a mut AstNode, path: &[u8],
+    ) -> Option<&'a mut AstNode> {
+        let mut current = node;
+        for &index in path {
+            match current {
+                AstNode::BinaryOperation { left, right, .. } => {
+                    current = if index == 0 { left } else { right };
+                },
+                AstNode::UnaryOperation { expression, .. } => {
+                    current = expression;
+                },
+                _ => return None, // Шлях недійсний
+            }
+        }
+        Some(current)
+    }
+
+    /// Performs ONE unfolding on a node that is *guaranteed* to be `Multiply`
+    fn perform_expansion(node: AstNode) -> AstNode {
+        if let AstNode::BinaryOperation {
+            operation: BinaryOperationKind::Multiply,
+            left,
+            right,
+        } = node
+        {
+            // Case 1: A * (B +/- C)
+            if let AstNode::BinaryOperation {
+                operation: op @ (BinaryOperationKind::Plus | BinaryOperationKind::Minus),
+                left: b,
+                right: c,
+            } = *right
+            {
+                let new_left = AstNode::BinaryOperation {
+                    operation: BinaryOperationKind::Multiply,
+                    left: left.clone(), // A
+                    right: b,           // B
+                };
+                let new_right = AstNode::BinaryOperation {
+                    operation: BinaryOperationKind::Multiply,
+                    left,     // A
+                    right: c, // C
+                };
+                // Повертаємо (A*B) +/- (A*C)
+                return AstNode::BinaryOperation {
+                    operation: op,
+                    left: Box::new(new_left),
+                    right: Box::new(new_right),
+                };
+            }
+
+            // Case 2: (A +/- B) * C
+            if let AstNode::BinaryOperation {
+                operation: op @ (BinaryOperationKind::Plus | BinaryOperationKind::Minus),
+                left: a,
+                right: b,
+            } = *left
+            {
+                let new_left = AstNode::BinaryOperation {
+                    operation: BinaryOperationKind::Multiply,
+                    left: a,              // A
+                    right: right.clone(), // C
+                };
+                let new_right = AstNode::BinaryOperation {
+                    operation: BinaryOperationKind::Multiply,
+                    left: b, // B
+                    right,   // C
+                };
+                // Повертаємо (A*C) +/- (B*C)
+                return AstNode::BinaryOperation {
+                    operation: op,
+                    left: Box::new(new_left),
+                    right: Box::new(new_right),
+                };
+            }
+
+            // If something went wrong, return as is
+            return AstNode::BinaryOperation {
+                operation: BinaryOperationKind::Multiply,
                 left,
                 right,
-            } => {
-                let expanded_left = Self::expand_recursive(*left)?;
-                let expanded_right = Self::expand_recursive(*right)?;
-
-                // 2. Analyze the current node AFTER its children are processed
-                match operation {
-                    // 3. We are ONLY interested in `Multiply` nodes
-                    BinaryOperationKind::Multiply => {
-                        // Case 1: A * (B + C)
-                        if let AstNode::BinaryOperation {
-                            operation: BinaryOperationKind::Plus,
-                            left: b,  // B
-                            right: c, // C
-                        } = &expanded_right
-                        {
-                            // Create new nodes: (A*B) and (A*C)
-                            let new_left = AstNode::BinaryOperation {
-                                operation: BinaryOperationKind::Multiply,
-                                left: Box::new(expanded_left.clone()), // A
-                                right: b.clone(),                      // B
-                            };
-                            let new_right = AstNode::BinaryOperation {
-                                operation: BinaryOperationKind::Multiply,
-                                left: Box::new(expanded_left), // A
-                                right: c.clone(),              // C
-                            };
-
-                            // Return the new node: (A*B) + (A*C)
-                            // We MUST recursively call expand_recursive on the result,
-                            // in case B or C were also expressions that need expanding.
-                            return Self::expand_recursive(AstNode::BinaryOperation {
-                                operation: BinaryOperationKind::Plus,
-                                left: Box::new(new_left),
-                                right: Box::new(new_right),
-                            });
-                        }
-
-                        // Case 2: (A + B) * C
-                        if let AstNode::BinaryOperation {
-                            operation: BinaryOperationKind::Plus,
-                            left: a,  // A
-                            right: b, // B
-                        } = &expanded_left
-                        {
-                            // Create new nodes: (A*C) and (B*C)
-                            let new_left = AstNode::BinaryOperation {
-                                operation: BinaryOperationKind::Multiply,
-                                left: a.clone(), // A
-                                right: Box::new(expanded_right.clone()), // C
-                            };
-                            let new_right = AstNode::BinaryOperation {
-                                operation: BinaryOperationKind::Multiply,
-                                left: b.clone(),                 // B
-                                right: Box::new(expanded_right), // C
-                            };
-
-                            // Return the new node: (A*C) + (B*C)
-                            return Self::expand_recursive(AstNode::BinaryOperation {
-                                operation: BinaryOperationKind::Plus,
-                                left: Box::new(new_left),
-                                right: Box::new(new_right),
-                            });
-                        }
-
-                        // If no 'Plus' child was found, return the Multiply node as is
-                        Ok(AstNode::BinaryOperation {
-                            operation: BinaryOperationKind::Multiply,
-                            left: Box::new(expanded_left),
-                            right: Box::new(expanded_right),
-                        })
-                    },
-                    // Return other nodes (Plus, etc.) as is
-                    _ => Ok(AstNode::BinaryOperation {
-                        operation,
-                        left: Box::new(expanded_left),
-                        right: Box::new(expanded_right),
-                    }),
-                }
-            },
-            // Also recurse into UnaryOperations
-            AstNode::UnaryOperation {
-                operation,
-                expression,
-            } => Ok(AstNode::UnaryOperation {
-                operation,
-                expression: Box::new(Self::expand_recursive(*expression)?),
-            }),
-            // Base cases (Number, Identifier)
-            _ => Ok(node),
+            };
         }
+
+        // Return the node as is if it's not `Multiply`
+        node
     }
 }

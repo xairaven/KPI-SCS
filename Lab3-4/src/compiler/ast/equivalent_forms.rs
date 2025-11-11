@@ -1,3 +1,5 @@
+// xairaven/kpi-scs/KPI-SCS-main/Lab3-4/src/compiler/ast/equivalent_forms.rs
+
 use crate::compiler::ast::tree::AbstractSyntaxTree;
 use crate::compiler::reports::Reporter;
 use crate::utils::StringBuffer;
@@ -18,8 +20,11 @@ impl AbstractSyntaxTree {
 
         // Running the search for equivalent forms
         while let Some(current_ast) = queue.pop_front() {
-            // Distributive Law (Expanding parentheses)
-            if let Ok(expanded_ast) = current_ast.clone().expand() {
+            // --- 1. Distributive law (Opening brackets) ---
+            // Calling a new "non-greedy" function
+            let expansion_steps = current_ast.get_all_single_step_expansions();
+
+            for expanded_ast in expansion_steps {
                 let key = expanded_ast.to_canonical_string();
 
                 // Is this form unique?
@@ -30,7 +35,11 @@ impl AbstractSyntaxTree {
                 }
             }
 
-            if let Ok(factored_ast) = current_ast.clone().factor() {
+            // --- 2. Associative Law (Parentheses) ---
+            // Calling a new "non-greedy" function
+            let factoring_steps = current_ast.get_all_single_step_factorings();
+
+            for factored_ast in factoring_steps {
                 let key = factored_ast.to_canonical_string();
 
                 // Is this form unique?
