@@ -54,6 +54,12 @@ impl MainComponent {
                     self.opened_file = None;
                 }
             }
+
+            if !self.result.is_empty()
+                && ui.button("🗐").on_hover_text("Copy Result").clicked()
+            {
+                ui.ctx().copy_text(self.result.trim().to_string());
+            }
         });
 
         ui.separator();
