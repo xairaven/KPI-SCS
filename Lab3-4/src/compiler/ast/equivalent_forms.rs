@@ -108,7 +108,7 @@ impl Reporter {
         for (index, form) in forms.iter().enumerate() {
             buffer.add_line(format!("{}) {}", index, form));
             if index == 0 {
-                buffer.add_line("-".repeat(form.len()));
+                buffer.add_line("\n".to_string());
             }
         }
 
