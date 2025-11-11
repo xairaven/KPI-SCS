@@ -38,25 +38,40 @@ impl AbstractSyntaxTree {
     }
 
     /// Recursively finds nodes matching the pattern `A * (B +/- C)` or `(A +/- B) * C`
+    /// OR `(A +/- B) / C`.
     fn find_expandable_nodes_recursive(
         node: &AstNode, path: &mut NodePath, paths: &mut Vec<NodePath>,
     ) {
+        // We now check for BOTH Multiply and Divide at the root
         if let AstNode::BinaryOperation {
-            operation: BinaryOperationKind::Multiply,
+            operation: op @ (BinaryOperationKind::Multiply | BinaryOperationKind::Divide),
             left,
             right,
         } = node
         {
-            // Pattern 1: (A +/- B) * C
-            if let AstNode::BinaryOperation { operation: op, .. } = left.as_ref()
-                && (*op == BinaryOperationKind::Plus || *op == BinaryOperationKind::Minus)
+            // Pattern 1: (A +/- B) * C  OR  (A +/- B) / C
+            // This is the pattern that matches `(a-b)/(c-d)`
+            if let AstNode::BinaryOperation {
+                operation: op_child,
+                ..
+            } = left.as_ref()
+                && (*op_child == BinaryOperationKind::Plus
+                    || *op_child == BinaryOperationKind::Minus)
             {
-                // This `Multiply` node can be expanded. Save its path.
+                // This `Multiply` or `Divide` node can be expanded. Save its path.
                 paths.push(path.clone());
             }
+
             // Pattern 2: A * (B +/- C)
-            if let AstNode::BinaryOperation { operation: op, .. } = right.as_ref()
-                && (*op == BinaryOperationKind::Plus || *op == BinaryOperationKind::Minus)
+            // We only do this for Multiply.
+            // We DO NOT expand `A / (B + C)`.
+            if *op == BinaryOperationKind::Multiply
+                && let AstNode::BinaryOperation {
+                    operation: op_child,
+                    ..
+                } = right.as_ref()
+                && (*op_child == BinaryOperationKind::Plus
+                    || *op_child == BinaryOperationKind::Minus)
             {
                 // This `Multiply` node can also be expanded. Save its path.
                 paths.push(path.clone());
@@ -103,9 +118,10 @@ impl AbstractSyntaxTree {
         Some(current)
     }
 
-    /// Performs ONE unfolding on a node that is *guaranteed* to be `Multiply`
-    /// and have at least one child that is `Plus` or `Minus`.
+    /// Performs ONE unfolding on a node that is guaranteed to be `Multiply` or `Divide`
+    /// and have at least one child that is `Plus` or `Minus` in the correct position.
     fn perform_expansion(node: AstNode) -> AstNode {
+        // --- Block 1: Handle Multiply ---
         if let AstNode::BinaryOperation {
             operation: BinaryOperationKind::Multiply,
             left,
@@ -166,8 +182,7 @@ impl AbstractSyntaxTree {
                 };
             }
 
-            // If patterns didn't match (e.g., this was called on a wrong node)
-            // return the original node.
+            // If patterns didn't match
             return AstNode::BinaryOperation {
                 operation: BinaryOperationKind::Multiply,
                 left,
@@ -175,7 +190,51 @@ impl AbstractSyntaxTree {
             };
         }
 
-        // Return the node as is if it's not `Multiply`
+        // --- Block 2: Handle Divide ---
+        // This block handles the `(a - b) / (c - d)` case
+        if let AstNode::BinaryOperation {
+            operation: BinaryOperationKind::Divide,
+            left,
+            right,
+        } = node
+        {
+            // We ONLY handle Case 2: (A +/- B) / C
+            // We DO NOT handle A / (B +/- C)
+            if let AstNode::BinaryOperation {
+                operation: op @ (BinaryOperationKind::Plus | BinaryOperationKind::Minus),
+                left: a,  // A
+                right: b, // B
+            } = *left
+            {
+                // Create (A / C)
+                let new_left = AstNode::BinaryOperation {
+                    operation: BinaryOperationKind::Divide, // Use Divide
+                    left: a,
+                    right: right.clone(), // C
+                };
+                // Create (B / C)
+                let new_right = AstNode::BinaryOperation {
+                    operation: BinaryOperationKind::Divide, // Use Divide
+                    left: b,
+                    right, // C
+                };
+                // Return (A/C) +/- (B/C)
+                return AstNode::BinaryOperation {
+                    operation: op, // Keep the original Plus or Minus
+                    left: Box::new(new_left),
+                    right: Box::new(new_right),
+                };
+            }
+
+            // If pattern (A+B)/C didn't match, return the original node
+            return AstNode::BinaryOperation {
+                operation: BinaryOperationKind::Divide,
+                left,
+                right,
+            };
+        }
+
+        // Return the node as is if it's not `Multiply` or `Divide`
         node
     }
 }
