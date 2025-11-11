@@ -203,10 +203,10 @@ impl CompilerContext {
     }
 
     fn find_equivalent_forms(&self) -> Result<Vec<String>, String> {
-        let ast_balance_result = self.balance_ast()?;
-        let ast = match ast_balance_result {
+        let ast_computing_result = self.compute_ast_4()?;
+        let ast = match ast_computing_result {
             Ok(value) => value,
-            Err(_) => return Err(Reporter.balancing(&ast_balance_result)),
+            Err(_) => return Err(Reporter.computing(&ast_computing_result, 4)),
         };
 
         let forms = ast.find_equivalent_forms();
