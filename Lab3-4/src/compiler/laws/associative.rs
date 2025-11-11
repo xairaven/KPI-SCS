@@ -8,35 +8,110 @@ type NodePath = Vec<u8>;
 impl AbstractSyntaxTree {
     /// Returns a VECTOR of trees, where each tree is ONE step of the parentheses.
     pub fn get_all_single_step_factorings(&self) -> Vec<AbstractSyntaxTree> {
-        let mut factorable_nodes_paths: Vec<NodePath> = Vec::new();
-        // 1. Find paths to *all* `Plus` or `Minus` nodes
-        Self::find_factorable_nodes_recursive(
-            &self.peek,
-            &mut vec![],
-            &mut factorable_nodes_paths,
-        );
+        // Ми не шукаємо шляхи. Ми просто викликаємо perform_factoring
+        // для *кореневого* вузла поточного дерева.
+        // perform_factoring ПОВИНЕН повернути ВЕКТОР, а не один вузол.
+        // Я бачу, що твій perform_factoring повертає AstNode,
+        // це теж частина проблеми.
+        //
+        // Давай виправимо і `get_all_single_step_factorings` і `perform_factoring`
+        // та перейменуємо `perform_factoring` на `get_all_possible_factorings`
 
-        let mut all_forms = Vec::new();
+        let mut all_new_forms = Vec::new();
+        Self::get_all_possible_factorings(self.peek.clone(), &mut all_new_forms);
+        all_new_forms
+    }
 
-        // 2. For each node found...
-        for path in factorable_nodes_paths {
-            let mut new_tree = self.clone();
-            // ...and try to apply the extrude *only* to this node
-            if let Some(target_node) =
-                Self::get_node_mut_by_path(&mut new_tree.peek, &path)
+    /// Знаходить *всі* можливі *одиночні* кроки факторингу з поточного вузла.
+    fn get_all_possible_factorings(
+        node: AstNode, all_forms: &mut Vec<AbstractSyntaxTree>,
+    ) {
+        let op_kind = match &node {
+            AstNode::BinaryOperation { operation, .. }
+                if *operation == BinaryOperationKind::Plus
+                    || *operation == BinaryOperationKind::Minus =>
             {
-                // `perform_factoring` tries to group the terms
-                // and *replaces* `target_node` with the new, grouped version
-                let original_node = target_node.clone();
-                *target_node = Self::perform_factoring(target_node.clone());
+                operation.clone()
+            },
+            _ => return, // Не вузол додавання/віднімання, нічого робити
+        };
 
-                // If `perform_factoring` changed something, add it to the list
-                if original_node != *target_node {
-                    all_forms.push(new_tree);
+        // --- STEP 1: Збираємо всі доданки ---
+        let mut summands = Vec::new();
+        Self::local_collect_operands(node, op_kind.clone(), &mut summands);
+
+        if summands.len() < 2 {
+            return;
+        }
+
+        // --- STEP 2: ЗНАХОДИМО *ВСІ* МОЖЛИВІ ПЕРШІ ГРУПУВАННЯ ---
+        let mut unique_factors: std::collections::HashSet<String> =
+            std::collections::HashSet::new();
+
+        for i in 0..summands.len() {
+            let factors_i = Self::get_factors(&summands[i]);
+            if factors_i.is_empty() {
+                continue;
+            }
+
+            for factor in factors_i {
+                let tree = AbstractSyntaxTree::from_node(factor);
+                let factor_key = tree.to_canonical_string();
+                let factor = tree.peek;
+                // Якщо ми вже генерували форму для цього фактора (наприклад, 'a'),
+                // пропускаємо, щоб уникнути дублікатів
+                if !unique_factors.insert(factor_key) {
+                    continue;
+                }
+
+                if let Some(remainder_i) = Self::get_remainder(&summands[i], &factor) {
+                    let mut current_group_terms = vec![remainder_i];
+                    let mut current_group_indices = vec![i];
+
+                    // Шукаємо цей фактор в інших доданках
+                    for (j, summand) in summands.iter().enumerate().skip(i + 1) {
+                        if let Some(remainder_j) = Self::get_remainder(summand, &factor) {
+                            current_group_terms.push(remainder_j);
+                            current_group_indices.push(j);
+                        }
+                    }
+
+                    // --- STEP 3: БУДУЄМО НОВУ ФОРМУ ---
+                    if current_group_terms.len() > 1 {
+                        // Знайшли групу! (напр. 'a' з [k, -x])
+                        let mut new_summands = Vec::new();
+
+                        // 1. Створюємо згорнутий вузол
+                        let sum_of_terms = Self::local_build_balanced_tree(
+                            current_group_terms,
+                            BinaryOperationKind::Plus, // Завжди Plus, бо мінуси вже в доданках
+                        )
+                        .unwrap_or(AstNode::Number(0.0));
+
+                        let new_node = AstNode::BinaryOperation {
+                            operation: BinaryOperationKind::Multiply,
+                            left: Box::new(factor.clone()),
+                            right: Box::new(sum_of_terms),
+                        };
+                        new_summands.push(new_node);
+
+                        // 2. Додаємо всі доданки, що не ввійшли в групу
+                        for (idx, term) in summands.iter().enumerate() {
+                            if !current_group_indices.contains(&idx) {
+                                new_summands.push(term.clone());
+                            }
+                        }
+
+                        // 3. Збираємо фінальне дерево і додаємо його
+                        if let Ok(final_node) =
+                            Self::local_build_balanced_tree(new_summands, op_kind.clone())
+                        {
+                            all_forms.push(AbstractSyntaxTree::from_node(final_node));
+                        }
+                    }
                 }
             }
         }
-        all_forms
     }
 
     /// (Local version) Recursively "unfolds" a chain of associative operations.
@@ -254,33 +329,82 @@ impl AbstractSyntaxTree {
 
     /// Auxiliary function: finds the factors for the term.
     fn get_factors(node: &AstNode) -> Vec<AstNode> {
-        if let AstNode::BinaryOperation {
-            operation: BinaryOperationKind::Multiply,
-            left,
-            right,
-        } = node
-        {
-            vec![*left.clone(), *right.clone()]
-        } else {
-            vec![] // Not multiplication, no factors
+        match node {
+            // Case: A * B
+            AstNode::BinaryOperation {
+                operation: BinaryOperationKind::Multiply,
+                left,
+                right,
+            } => {
+                vec![*left.clone(), *right.clone()]
+            },
+            // Case: -(A * B)
+            AstNode::UnaryOperation {
+                operation: crate::compiler::ast::tree::UnaryOperationKind::Minus,
+                expression,
+            } => {
+                if let AstNode::BinaryOperation {
+                    operation: BinaryOperationKind::Multiply,
+                    left,
+                    right,
+                } = expression.as_ref()
+                {
+                    // Multipliers: A and B. The minus will be taken into account in `get_remainder`.
+                    vec![*left.clone(), *right.clone()]
+                } else {
+                    vec![]
+                }
+            },
+            _ => vec![], // Not multiplication, no factors
         }
     }
 
     /// Helper function: for `node` (A*B) and `factor` (A), returns `Some(B)`.
     fn get_remainder(node: &AstNode, factor: &AstNode) -> Option<AstNode> {
-        if let AstNode::BinaryOperation {
-            operation: BinaryOperationKind::Multiply,
-            left,
-            right,
-        } = node
-        {
-            if left.as_ref() == factor {
-                return Some(*right.clone());
-            }
-            if right.as_ref() == factor {
-                return Some(*left.clone());
-            }
+        match node {
+            // Case: A * B
+            AstNode::BinaryOperation {
+                operation: BinaryOperationKind::Multiply,
+                left,
+                right,
+            } => {
+                if left.as_ref() == factor {
+                    return Some(*right.clone()); // A * B, factor A, remainder B
+                }
+                if right.as_ref() == factor {
+                    return Some(*left.clone()); // A * B, factor B, remainder A
+                }
+                None
+            },
+            // Case: -(A * B)
+            AstNode::UnaryOperation {
+                operation: op @ crate::compiler::ast::tree::UnaryOperationKind::Minus,
+                expression,
+            } => {
+                if let AstNode::BinaryOperation {
+                    operation: BinaryOperationKind::Multiply,
+                    left,
+                    right,
+                } = expression.as_ref()
+                {
+                    if left.as_ref() == factor {
+                        // -(A * B), factor A, remainder -B
+                        return Some(AstNode::UnaryOperation {
+                            operation: op.clone(),
+                            expression: right.clone(),
+                        });
+                    }
+                    if right.as_ref() == factor {
+                        // -(A * B), factor B, remainder -A
+                        return Some(AstNode::UnaryOperation {
+                            operation: op.clone(),
+                            expression: left.clone(),
+                        });
+                    }
+                }
+                None
+            },
+            _ => None,
         }
-        None
     }
 }
