@@ -1,92 +1,90 @@
 use crate::compiler::ast::tree::{
     AbstractSyntaxTree, AstError, AstNode, BinaryOperationKind,
 };
-use std::collections::VecDeque;
-
-type NodePath = Vec<u8>;
+use std::collections::{HashSet, VecDeque};
 
 impl AbstractSyntaxTree {
-    /// Returns a VECTOR of trees, where each tree is ONE step of the parentheses.
+    /// Returns a VECTOR of trees, where each tree is ONE step of the factoring.
     pub fn get_all_single_step_factorings(&self) -> Vec<AbstractSyntaxTree> {
-        // Ми не шукаємо шляхи. Ми просто викликаємо perform_factoring
-        // для *кореневого* вузла поточного дерева.
-        // perform_factoring ПОВИНЕН повернути ВЕКТОР, а не один вузол.
-        // Я бачу, що твій perform_factoring повертає AstNode,
-        // це теж частина проблеми.
-        //
-        // Давай виправимо і `get_all_single_step_factorings` і `perform_factoring`
-        // та перейменуємо `perform_factoring` на `get_all_possible_factorings`
-
         let mut all_new_forms = Vec::new();
+        // We start factoring from the root node.
         Self::get_all_possible_factorings(self.peek.clone(), &mut all_new_forms);
         all_new_forms
     }
 
-    /// Знаходить *всі* можливі *одиночні* кроки факторингу з поточного вузла.
+    /// Finds *all* possible *single* factoring steps from the current node.
     fn get_all_possible_factorings(
         node: AstNode, all_forms: &mut Vec<AbstractSyntaxTree>,
     ) {
-        let op_kind = match &node {
+        // We can only factor terms from an addition or subtraction chain.
+        match &node {
             AstNode::BinaryOperation { operation, .. }
                 if *operation == BinaryOperationKind::Plus
                     || *operation == BinaryOperationKind::Minus =>
             {
-                operation.clone()
+                // This is a node we can start collecting from.
             },
-            _ => return, // Не вузол додавання/віднімання, нічого робити
+            _ => return, // Not an additive/subtractive node, nothing to factor.
         };
 
-        // --- STEP 1: Збираємо всі доданки ---
+        // --- STEP 1: Flatten the expression ---
+        // This is the CRITICAL FIX. We flatten the tree into a list of terms.
+        // `ak - ck - ax` will become `[ (ak), (-ck), (-ax) ]`
         let mut summands = Vec::new();
-        Self::local_collect_operands(node, op_kind.clone(), &mut summands);
+        Self::local_collect_operands(node, &mut summands);
 
         if summands.len() < 2 {
-            return;
+            return; // Not enough terms to factor.
         }
 
-        // --- STEP 2: ЗНАХОДИМО *ВСІ* МОЖЛИВІ ПЕРШІ ГРУПУВАННЯ ---
-        let mut unique_factors: std::collections::HashSet<String> =
-            std::collections::HashSet::new();
+        // --- STEP 2: Find all possible factor groupings ---
+        let mut unique_factors: HashSet<String> = HashSet::new();
 
+        // Iterate over every term to use as the "base" for a group
         for i in 0..summands.len() {
             let factors_i = Self::get_factors(&summands[i]);
             if factors_i.is_empty() {
-                continue;
+                continue; // This term (e.g., 'a') has no factors.
             }
 
+            // Iterate over each factor of the base term (e.g., 'a' and 'k' for 'ak')
             for factor in factors_i {
                 let tree = AbstractSyntaxTree::from_node(factor);
                 let factor_key = tree.to_canonical_string();
                 let factor = tree.peek;
-                // Якщо ми вже генерували форму для цього фактора (наприклад, 'a'),
-                // пропускаємо, щоб уникнути дублікатів
+
+                // We use a HashSet to avoid generating duplicates.
                 if !unique_factors.insert(factor_key) {
                     continue;
                 }
 
+                // Get the remainder for the base term (e.g., 'k' from 'ak' with factor 'a')
                 if let Some(remainder_i) = Self::get_remainder(&summands[i], &factor) {
                     let mut current_group_terms = vec![remainder_i];
                     let mut current_group_indices = vec![i];
 
-                    // Шукаємо цей фактор в інших доданках
+                    // --- STEP 3: Find other terms with the same factor ---
                     for (j, summand) in summands.iter().enumerate().skip(i + 1) {
+                        // e.g., check '-ax' for factor 'a'
                         if let Some(remainder_j) = Self::get_remainder(summand, &factor) {
+                            // Remainder will be '(-x)'. This is correct.
                             current_group_terms.push(remainder_j);
                             current_group_indices.push(j);
                         }
                     }
 
-                    // --- STEP 3: БУДУЄМО НОВУ ФОРМУ ---
+                    // --- STEP 4: Build the new factored form ---
                     if current_group_terms.len() > 1 {
-                        // Знайшли групу! (напр. 'a' з [k, -x])
+                        // We found a group! (e.g., factor 'a' with remainders [k, (-x)])
                         let mut new_summands = Vec::new();
 
-                        // 1. Створюємо згорнутий вузол
+                        // 1. Create the new factored node: a * (k + (-x))
+                        // We *always* sum the remainders with `Plus`.
                         let sum_of_terms = Self::local_build_balanced_tree(
                             current_group_terms,
-                            BinaryOperationKind::Plus, // Завжди Plus, бо мінуси вже в доданках
+                            BinaryOperationKind::Plus,
                         )
-                        .unwrap_or(AstNode::Number(0.0));
+                        .unwrap_or(AstNode::Number(0.0)); // Should not happen
 
                         let new_node = AstNode::BinaryOperation {
                             operation: BinaryOperationKind::Multiply,
@@ -95,17 +93,19 @@ impl AbstractSyntaxTree {
                         };
                         new_summands.push(new_node);
 
-                        // 2. Додаємо всі доданки, що не ввійшли в групу
+                        // 2. Add all the terms that were *not* part of this group
                         for (idx, term) in summands.iter().enumerate() {
                             if !current_group_indices.contains(&idx) {
                                 new_summands.push(term.clone());
                             }
                         }
 
-                        // 3. Збираємо фінальне дерево і додаємо його
-                        if let Ok(final_node) =
-                            Self::local_build_balanced_tree(new_summands, op_kind.clone())
-                        {
+                        // 3. Re-assemble the final tree from all terms
+                        // We *always* build the final tree with `Plus` as well.
+                        if let Ok(final_node) = Self::local_build_balanced_tree(
+                            new_summands,
+                            BinaryOperationKind::Plus,
+                        ) {
                             all_forms.push(AbstractSyntaxTree::from_node(final_node));
                         }
                     }
@@ -114,59 +114,80 @@ impl AbstractSyntaxTree {
         }
     }
 
-    /// (Local version) Recursively "unfolds" a chain of associative operations.
-    fn local_collect_operands(
-        node: AstNode, op_kind: BinaryOperationKind, operands: &mut Vec<AstNode>,
-    ) {
+    /// Flattens a chain of `Plus`/`Minus` nodes into a flat Vec of operands.
+    /// `A - B` is treated as `A` and `(-B)`.
+    /// `ak - ck - ax` -> `[ (ak), (-ck), (-ax) ]`
+    fn local_collect_operands(node: AstNode, operands: &mut Vec<AstNode>) {
         match node {
-            // If the node is the same operation (Plus or Minus)...
+            // Case: A + B
             AstNode::BinaryOperation {
-                operation,
+                operation: BinaryOperationKind::Plus,
                 left,
                 right,
-            } if operation == op_kind => {
-                // ...recursively collect operands from both sides.
-                Self::local_collect_operands(*left, op_kind.clone(), operands);
-                Self::local_collect_operands(*right, op_kind.clone(), operands);
+            } => {
+                // Collect operands from both sides
+                Self::local_collect_operands(*left, operands);
+                Self::local_collect_operands(*right, operands);
             },
-            // If it's a `Plus` inside a `Minus` (or vice versa), we also add it.
-            // This is needed for `a - (b + c)` -> `[a, -(b+c)]`
+            // Case: A - B
             AstNode::BinaryOperation {
-                operation,
+                operation: BinaryOperationKind::Minus,
                 left,
                 right,
-            } if (op_kind == BinaryOperationKind::Minus
-                && operation == BinaryOperationKind::Plus)
-                || (op_kind == BinaryOperationKind::Plus
-                    && operation == BinaryOperationKind::Minus) =>
-            {
-                Self::local_collect_operands(*left, op_kind.clone(), operands);
-
-                // If we collect `Plus` and the node `Minus`, then the right operand
-                // must become negative.
-                if op_kind == BinaryOperationKind::Plus
-                    && operation == BinaryOperationKind::Minus
-                {
-                    Self::local_collect_operands(
-                        AstNode::UnaryOperation {
-                            operation:
-                                crate::compiler::ast::tree::UnaryOperationKind::Minus,
-                            expression: right,
-                        },
-                        op_kind,
-                        operands,
-                    );
-                } else {
-                    Self::local_collect_operands(*right, op_kind, operands);
-                }
+            } => {
+                // Collect operands from the left side
+                Self::local_collect_operands(*left, operands);
+                // Collect operands from the right side, but wrap them in UnaryMinus
+                Self::local_collect_operands_with_minus(*right, operands);
             },
+            // Base case: A standalone term (like 'ak' or '-ck')
             _ => {
                 operands.push(node);
             },
         }
     }
 
-    /// Building balanced tree
+    /// Helper for `local_collect_operands` to correctly apply UnaryMinus.
+    /// This handles `-(A+B) -> -A + -B` and `-(-A) -> A`.
+    fn local_collect_operands_with_minus(node: AstNode, operands: &mut Vec<AstNode>) {
+        match node {
+            // Case: -(-A) => A
+            AstNode::UnaryOperation {
+                operation: crate::compiler::ast::tree::UnaryOperationKind::Minus,
+                expression,
+            } => {
+                Self::local_collect_operands(*expression, operands);
+            },
+            // Case: -(A + B) => -A, -B
+            AstNode::BinaryOperation {
+                operation: BinaryOperationKind::Plus,
+                left,
+                right,
+            } => {
+                Self::local_collect_operands_with_minus(*left, operands);
+                Self::local_collect_operands_with_minus(*right, operands);
+            },
+            // Case: -(A - B) => -A, B
+            AstNode::BinaryOperation {
+                operation: BinaryOperationKind::Minus,
+                left,
+                right,
+            } => {
+                Self::local_collect_operands_with_minus(*left, operands);
+                Self::local_collect_operands(*right, operands); // Note: right side becomes positive
+            },
+            // Base case: -(term) => push(-term)
+            _ => {
+                operands.push(AstNode::UnaryOperation {
+                    operation: crate::compiler::ast::tree::UnaryOperationKind::Minus,
+                    expression: Box::new(node),
+                });
+            },
+        }
+    }
+
+    /// Builds a balanced tree from a list of operands.
+    /// (This is a standard helper function, same as in balancer.rs)
     fn local_build_balanced_tree(
         operands: Vec<AstNode>, op_kind: BinaryOperationKind,
     ) -> Result<AstNode, AstError> {
@@ -195,139 +216,9 @@ impl AbstractSyntaxTree {
         queue.pop_front().ok_or(AstError::FailedPopFromQueue)
     }
 
-    /// Recursively searches for nodes that are `Plus` or `Minus`
-    fn find_factorable_nodes_recursive(
-        node: &AstNode, path: &mut NodePath, paths: &mut Vec<NodePath>,
-    ) {
-        if let AstNode::BinaryOperation { operation: op, .. } = node
-            && (*op == BinaryOperationKind::Plus || *op == BinaryOperationKind::Minus)
-        {
-            paths.push(path.clone());
-        }
-
-        // Recursive traversal
-        match node {
-            AstNode::BinaryOperation { left, right, .. } => {
-                path.push(0); // 0 = left
-                Self::find_factorable_nodes_recursive(left, path, paths);
-                path.pop();
-
-                path.push(1); // 1 = right
-                Self::find_factorable_nodes_recursive(right, path, paths);
-                path.pop();
-            },
-            AstNode::UnaryOperation { expression, .. } => {
-                path.push(2); // 2 = expression
-                Self::find_factorable_nodes_recursive(expression, path, paths);
-                path.pop();
-            },
-            _ => {},
-        }
-    }
-
-    /// Performs ONE factorization on a node that is *guaranteed* to be `Plus` or `Minus`
-    fn perform_factoring(node: AstNode) -> AstNode {
-        let op_kind = match &node {
-            AstNode::BinaryOperation { operation, .. } => operation.clone(),
-            _ => return node, // Не `Plus` або `Minus`, нічого робити
-        };
-
-        // --- STEP 1: Expand ---
-        let mut summands = Vec::new();
-        Self::local_collect_operands(node, op_kind.clone(), &mut summands);
-
-        if summands.len() < 2 {
-            return Self::local_build_balanced_tree(summands, op_kind)
-                .unwrap_or(AstNode::Number(0.0));
-        }
-
-        // --- STEP 2: FIND COMMON MULTIPLIERS (O(N^2)) ---
-        // (HashMap doesn't work with f64, so we use O(N^2))
-        let mut new_summands = Vec::new();
-        let mut processed = vec![false; summands.len()];
-
-        for i in 0..summands.len() {
-            if processed[i] {
-                continue;
-            }
-
-            let factors_i = Self::get_factors(&summands[i]);
-            if factors_i.is_empty() {
-                new_summands.push(summands[i].clone());
-                processed[i] = true;
-                continue;
-            }
-
-            let mut best_group: (Option<AstNode>, Vec<AstNode>) = (None, vec![]);
-
-            // We iterate over each factor of the current term
-            for factor in &factors_i {
-                if let Some(remainder_i) = Self::get_remainder(&summands[i], factor) {
-                    let mut current_group_terms = vec![remainder_i]; // [b]
-                    let mut current_group_indices = vec![i];
-
-                    // We look for this factor in other terms
-                    for j in (i + 1)..summands.len() {
-                        if processed[j] {
-                            continue;
-                        }
-                        if let Some(remainder_j) =
-                            Self::get_remainder(&summands[j], factor)
-                        {
-                            current_group_terms.push(remainder_j); // [b, c]
-                            current_group_indices.push(j);
-                        }
-                    }
-
-                    // If we find a group, we save it
-                    if current_group_terms.len() > 1 {
-                        // Found the *first* possible group, exit.
-                        // This guarantees "one step"
-                        best_group = (Some(factor.clone()), current_group_terms);
-                        for &idx in &current_group_indices {
-                            processed[idx] = true;
-                        }
-                        break;
-                    }
-                }
-                if best_group.0.is_some() {
-                    break;
-                }
-            }
-
-            // --- STEP 3: BUILD A NEW NODE ---
-            if let (Some(factor), terms) = best_group {
-                // Found a group, for example a*b + a*c
-                let sum_of_terms =
-                    Self::local_build_balanced_tree(terms, BinaryOperationKind::Plus)
-                        .unwrap_or(AstNode::Number(0.0));
-
-                let new_node = AstNode::BinaryOperation {
-                    operation: BinaryOperationKind::Multiply,
-                    left: Box::new(factor),
-                    right: Box::new(sum_of_terms),
-                };
-                new_summands.push(new_node);
-            } else if !processed[i] {
-                // Group not found, return term as is
-                new_summands.push(summands[i].clone());
-                processed[i] = true;
-            }
-        }
-
-        // Add all remaining terms
-        for (i, p) in processed.iter().enumerate() {
-            if !p {
-                new_summands.push(summands[i].clone());
-            }
-        }
-
-        // --- STEP 4: FINAL ASSEMBLY ---
-        Self::local_build_balanced_tree(new_summands, op_kind)
-            .unwrap_or(AstNode::Number(0.0))
-    }
-
-    /// Auxiliary function: finds the factors for the term.
+    /// Helper function: finds the factors for a term.
+    /// `A * B` -> `[A, B]`
+    /// `-(A * B)` -> `[A, B]` (sign is handled by get_remainder)
     fn get_factors(node: &AstNode) -> Vec<AstNode> {
         match node {
             // Case: A * B
@@ -349,17 +240,19 @@ impl AbstractSyntaxTree {
                     right,
                 } = expression.as_ref()
                 {
-                    // Multipliers: A and B. The minus will be taken into account in `get_remainder`.
+                    // Factors are A and B. The minus sign is part of the "remainder".
                     vec![*left.clone(), *right.clone()]
                 } else {
                     vec![]
                 }
             },
-            _ => vec![], // Not multiplication, no factors
+            _ => vec![], // Not a multiplication, no factors
         }
     }
 
-    /// Helper function: for `node` (A*B) and `factor` (A), returns `Some(B)`.
+    /// Helper function: for `node` (term) and `factor`, returns the remainder.
+    /// `(A * B, A)` -> `B`
+    /// `(-(A * B), A)` -> `(-B)`
     fn get_remainder(node: &AstNode, factor: &AstNode) -> Option<AstNode> {
         match node {
             // Case: A * B
@@ -369,10 +262,10 @@ impl AbstractSyntaxTree {
                 right,
             } => {
                 if left.as_ref() == factor {
-                    return Some(*right.clone()); // A * B, factor A, remainder B
+                    return Some(*right.clone()); // (A * B) / A = B
                 }
                 if right.as_ref() == factor {
-                    return Some(*left.clone()); // A * B, factor B, remainder A
+                    return Some(*left.clone()); // (A * B) / B = A
                 }
                 None
             },
@@ -388,14 +281,14 @@ impl AbstractSyntaxTree {
                 } = expression.as_ref()
                 {
                     if left.as_ref() == factor {
-                        // -(A * B), factor A, remainder -B
+                        // -(A * B) / A = -B
                         return Some(AstNode::UnaryOperation {
                             operation: op.clone(),
                             expression: right.clone(),
                         });
                     }
                     if right.as_ref() == factor {
-                        // -(A * B), factor B, remainder -A
+                        // -(A * B) / B = -A
                         return Some(AstNode::UnaryOperation {
                             operation: op.clone(),
                             expression: left.clone(),
