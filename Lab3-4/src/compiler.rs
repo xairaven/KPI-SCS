@@ -9,6 +9,8 @@ pub mod ast {
     pub mod math;
     pub mod transform;
     pub mod tree;
+
+    pub mod equivalent_forms;
 }
 
 pub mod laws {

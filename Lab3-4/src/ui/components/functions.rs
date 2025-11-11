@@ -58,7 +58,11 @@ impl FunctionsComponent {
 
             ui.separator();
 
-            if ui.button("Equivalent Forms").clicked() {}
+            if ui.button("Equivalent Forms").clicked() {
+                context
+                    .ui
+                    .set_output(context.compiler.equivalent_forms_report());
+            }
         });
     }
 }

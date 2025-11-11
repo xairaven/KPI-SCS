@@ -72,6 +72,67 @@ impl AbstractSyntaxTree {
             },
         }
     }
+
+    pub fn to_canonical_string(&self) -> String {
+        Self::node_to_canonical_string(&self.peek)
+    }
+
+    fn node_to_canonical_string(node: &AstNode) -> String {
+        match node {
+            AstNode::Number(n) => format!("{:.2}", n),
+            AstNode::Identifier(s) => s.clone(),
+            AstNode::StringLiteral(s) => format!("\"{}\"", s),
+            AstNode::UnaryOperation {
+                operation,
+                expression,
+            } => {
+                format!(
+                    "({}{})",
+                    operation,
+                    Self::node_to_canonical_string(expression)
+                )
+            },
+            AstNode::FunctionCall { name, arguments } => {
+                let args = arguments
+                    .iter()
+                    .map(Self::node_to_canonical_string)
+                    .collect::<Vec<String>>()
+                    .join(", ");
+                format!("{}({})", name, args)
+            },
+            AstNode::ArrayAccess {
+                identifier,
+                indices,
+            } => {
+                let idx = indices
+                    .iter()
+                    .map(Self::node_to_canonical_string)
+                    .map(|s| format!("[{}]", s))
+                    .collect::<String>();
+                format!("{}{}", identifier, idx)
+            },
+            AstNode::BinaryOperation {
+                operation,
+                left,
+                right,
+            } => {
+                let l_str = Self::node_to_canonical_string(left);
+                let r_str = Self::node_to_canonical_string(right);
+
+                // Sorting for commutative operations
+                match operation {
+                    BinaryOperationKind::Plus | BinaryOperationKind::Multiply => {
+                        let mut parts = [l_str, r_str];
+                        parts.sort();
+                        format!("({} {} {})", parts[0], operation, parts[1])
+                    },
+                    _ => {
+                        format!("({} {} {})", l_str, operation, r_str)
+                    },
+                }
+            },
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

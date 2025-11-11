@@ -201,4 +201,26 @@ impl CompilerContext {
             Err(error) => error,
         }
     }
+
+    fn find_equivalent_forms(&self) -> Result<Vec<String>, String> {
+        let ast_balance_result = self.balance_ast()?;
+        let ast = match ast_balance_result {
+            Ok(value) => value,
+            Err(_) => return Err(Reporter.balancing(&ast_balance_result)),
+        };
+
+        let forms = ast.find_equivalent_forms();
+
+        Ok(forms
+            .iter()
+            .map(|form| form.to_canonical_string())
+            .collect())
+    }
+
+    pub fn equivalent_forms_report(&self) -> String {
+        match self.find_equivalent_forms() {
+            Ok(forms) => Reporter.finding_equivalent_form(&forms),
+            Err(error) => error,
+        }
+    }
 }
