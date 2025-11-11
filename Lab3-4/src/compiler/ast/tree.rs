@@ -133,6 +133,111 @@ impl AbstractSyntaxTree {
             },
         }
     }
+
+    /// Creates a readable string representation, adding parentheses only
+    /// when required by operator precedence.
+    pub fn to_pretty_string(&self) -> String {
+        // Start recursion with the lowest parent precedence (0).
+        Self::node_to_pretty_string(&self.peek, 0)
+    }
+
+    /// Recursive helper for `to_pretty_string`.
+    fn node_to_pretty_string(node: &AstNode, parent_precedence: u8) -> String {
+        match node {
+            // Atomic nodes just return their string.
+            AstNode::Number(n) => format!("{n:.2}"),
+            AstNode::Identifier(s) => s.clone(),
+            AstNode::StringLiteral(s) => format!("\"{}\"", s),
+
+            AstNode::FunctionCall { name, arguments } => {
+                let args = arguments
+                    .iter()
+                    // Arguments in a function call are new contexts.
+                    .map(|arg| Self::node_to_pretty_string(arg, 0))
+                    .collect::<Vec<String>>()
+                    .join(", ");
+                format!("{}({})", name, args)
+            },
+
+            AstNode::ArrayAccess {
+                identifier,
+                indices,
+            } => {
+                let idx = indices
+                    .iter()
+                    .map(|idx| Self::node_to_pretty_string(idx, 0)) // Also new contexts.
+                    .map(|s| format!("[{}]", s))
+                    .collect::<String>();
+                format!("{}{}", identifier, idx)
+            },
+
+            AstNode::UnaryOperation {
+                operation,
+                expression,
+            } => {
+                // Unary operations (like -) have high precedence.
+                let my_precedence = 3;
+                // Pass our high precedence to the child.
+                let expr_str = Self::node_to_pretty_string(expression, my_precedence);
+                let result = format!("{}{}", operation, expr_str);
+
+                // Wrap *this* expression if its precedence is lower than the parent's.
+                if my_precedence < parent_precedence {
+                    format!("({})", result)
+                } else {
+                    result
+                }
+            },
+
+            AstNode::BinaryOperation {
+                operation,
+                left,
+                right,
+            } => {
+                let my_precedence = operation.precedence();
+
+                // Determine precedence to pass to children.
+                // This handles non-associative operations like Minus and Divide.
+                let (left_prec, right_prec) = match operation {
+                    // For `A - B` or `A / B`, the right side (B)
+                    // needs parentheses if it has the same precedence.
+                    // e.g., A - (B - C) must keep its parentheses.
+                    BinaryOperationKind::Minus | BinaryOperationKind::Divide => {
+                        (my_precedence, my_precedence + 1)
+                    },
+                    // For associative ops `+` and `*`, just pass our own precedence.
+                    _ => (my_precedence, my_precedence),
+                };
+
+                let l_str = Self::node_to_pretty_string(left, left_prec);
+                let r_str = Self::node_to_pretty_string(right, right_prec);
+
+                let result = format!("{} {} {}", l_str, operation, r_str);
+
+                // Wrap *this* expression if its precedence is lower than the parent's.
+                // e.g., (A + B) * C. The `+` node (precedence 1) is a child
+                // of `*` (precedence 2). `node_to_pretty_string` for `+`
+                // will receive `parent_precedence = 2`.
+                // `my_precedence (1) < parent_precedence (2)` will be true,
+                // so it will return "(a + b)".
+                if my_precedence < parent_precedence {
+                    format!("({})", result)
+                } else {
+                    result
+                }
+            },
+        }
+    }
+}
+
+impl BinaryOperationKind {
+    /// Returns the precedence level for this operator.
+    fn precedence(&self) -> u8 {
+        match self {
+            Self::Plus | Self::Minus | Self::Or => 1,
+            Self::Multiply | Self::Divide | Self::And => 2,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

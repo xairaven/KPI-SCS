@@ -211,10 +211,7 @@ impl CompilerContext {
 
         let forms = ast.find_equivalent_forms();
 
-        Ok(forms
-            .iter()
-            .map(|form| form.to_canonical_string())
-            .collect())
+        Ok(forms.iter().map(|form| form.to_pretty_string()).collect())
     }
 
     pub fn equivalent_forms_report(&self) -> String {
