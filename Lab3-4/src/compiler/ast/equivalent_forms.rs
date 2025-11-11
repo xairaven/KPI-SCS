@@ -18,8 +18,17 @@ impl AbstractSyntaxTree {
         visited.insert(initial_key);
         all_forms.push(self.clone());
 
+        // A limit to avoid infinite loops if something goes wrong
+        let mut iterations_limit = 5000;
+
         // Running the search for equivalent forms
         while let Some(current_ast) = queue.pop_front() {
+            if iterations_limit <= 0 {
+                log::error!("Iteration limit reached! Aborting search.");
+                break;
+            }
+            iterations_limit -= 1;
+
             // --- 1. Distributive law (Opening brackets) ---
             // Calling a new "non-greedy" function
             let expansion_steps = current_ast.get_all_single_step_expansions();
