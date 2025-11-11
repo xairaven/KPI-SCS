@@ -103,10 +103,13 @@ impl Reporter {
     pub fn finding_equivalent_form(&self, forms: &[String]) -> String {
         let mut buffer = StringBuffer::default();
 
-        buffer.add_line(format!("Found {} equivalent forms!\n", forms.len()));
+        buffer.add_line(format!("Found {} equivalent forms!\n", forms.len() - 1));
 
         for (index, form) in forms.iter().enumerate() {
-            buffer.add_line(format!("{}) {}", index + 1, form));
+            buffer.add_line(format!("{}) {}", index, form));
+            if index == 0 {
+                buffer.add_line("-".repeat(form.len()));
+            }
         }
 
         buffer.get()
