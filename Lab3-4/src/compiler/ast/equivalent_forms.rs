@@ -32,7 +32,6 @@ impl AbstractSyntaxTree {
 
             for expanded_ast in expansion_steps {
                 let key = expanded_ast.to_canonical_string();
-                // Check if we've already seen this form to avoid cycles and duplicates
                 if !visited.contains(&key) {
                     visited.insert(key.clone());
                     all_forms.push(expanded_ast.clone());
@@ -41,34 +40,54 @@ impl AbstractSyntaxTree {
             }
         }
 
-        // --- Stage 2: Factoring (Associative Law, Nodes 7-13 from memo) ---
-        // This stage starts *only* with the fully expanded form (Node 7)
-        // and *only* applies factoring (collapsing terms).
+        // --- Stage 1.5: Flattening ---
+        // We take the "fully expanded" node (Node 7) and apply unary minus
+        // rules like `-(A-B) -> -A+B` to get the *truly* flat form.
+        // This is the form you're looking for, which has no parentheses.
 
-        let Some(start_node_for_factoring) = fully_expanded_node else {
-            // This can happen if the original expression had no parentheses to expand.
-            // For the example `(a-c)*k...`, this node will always be found.
+        let Some(node_to_flatten) = fully_expanded_node else {
             log::warn!(
-                "No fully expanded form (Node 7) found. Skipping Stage 2 (Factoring)."
+                "No fully expanded form (Node 7) found. Skipping Stage 1.5 and 2."
             );
             return all_forms;
         };
 
-        let mut factoring_queue: VecDeque<AbstractSyntaxTree> = VecDeque::new();
-        // We don't need to add `start_node_for_factoring` to `all_forms` or `visited` again,
-        // as it was already added in Stage 1.
-        factoring_queue.push_back(start_node_for_factoring);
+        let node_to_flatten_copy = node_to_flatten.clone();
+        let start_node_for_factoring =
+            match Self::transform_recursive(node_to_flatten.peek)
+                .and_then(Self::fold_recursive)
+            {
+                Ok(flattened_node_peek) => {
+                    let flattened_ast =
+                        AbstractSyntaxTree::from_node(flattened_node_peek);
+                    let key = flattened_ast.to_canonical_string();
+                    if !visited.contains(&key) {
+                        // Add this new, truly flat form if it's unique
+                        visited.insert(key);
+                        all_forms.push(flattened_ast.clone());
+                    }
+                    flattened_ast // This is the new starting point for factoring
+                },
+                Err(e) => {
+                    log::error!("Failed to flatten Node 7: {:?}. Using un-flattened.", e);
+                    node_to_flatten_copy // Fallback to the un-flattened node
+                },
+            };
 
-        // This BFS explores all forms reachable by *factoring*
+        // --- Stage 2: Factoring (Associative Law, Nodes 7-13) ---
+        // This stage now starts from the *truly flat* form.
+
+        let mut factoring_queue: VecDeque<AbstractSyntaxTree> = VecDeque::new();
+        factoring_queue.push_back(start_node_for_factoring);
+        // We don't need to re-add to `visited` or `all_forms`,
+        // as it was handled in Stage 1.5
+
         while let Some(current_ast) = factoring_queue.pop_front() {
-            // Get all possible next forms by applying *one step* of factoring
             let factoring_steps = current_ast.get_all_single_step_factorings();
 
             for factored_ast in factoring_steps {
                 let key = factored_ast.to_canonical_string();
                 if !visited.contains(&key) {
-                    // We continue using the *same* `visited` set to prevent
-                    // re-discovering forms from Stage 1.
                     visited.insert(key.clone());
                     all_forms.push(factored_ast.clone());
                     factoring_queue.push_back(factored_ast);

@@ -196,8 +196,35 @@ impl AbstractSyntaxTree {
             } => {
                 let my_precedence = operation.precedence();
 
-                // Determine precedence to pass to children.
-                // This handles non-associative operations like Minus and Divide.
+                // Handle the `A + (-B)` case to format it as "A - B"
+                if *operation == BinaryOperationKind::Plus
+                    && let AstNode::UnaryOperation {
+                        operation: UnaryOperationKind::Minus,
+                        expression: inner_right,
+                    } = right.as_ref()
+                {
+                    // This is the A + (-B) case.
+                    // We will format it as "A - B"
+                    // `my_precedence` is still 1 (for Plus/Minus)
+
+                    // Precedence for `A` (left) is for `Plus` (1)
+                    let l_str = Self::node_to_pretty_string(left, my_precedence);
+
+                    // Precedence for `B` (inner_right) is for `Minus` (1+1=2)
+                    // This ensures `A - (B * C)` is correct
+                    let r_str =
+                        Self::node_to_pretty_string(inner_right, my_precedence + 1);
+
+                    let result = format!("{} - {}", l_str, r_str);
+
+                    // Wrap if *our* precedence (as `Plus`) is lower than parent's
+                    if my_precedence < parent_precedence {
+                        return format!("({})", result);
+                    } else {
+                        return result;
+                    }
+                }
+
                 let (left_prec, right_prec) = match operation {
                     // For `A - B` or `A / B`, the right side (B)
                     // needs parentheses if it has the same precedence.

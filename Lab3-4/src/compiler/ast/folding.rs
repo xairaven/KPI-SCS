@@ -11,7 +11,7 @@ impl AbstractSyntaxTree {
         Ok(Self::from_node(folded))
     }
 
-    fn fold_recursive(node: AstNode) -> Result<AstNode, AstError> {
+    pub fn fold_recursive(node: AstNode) -> Result<AstNode, AstError> {
         match &node {
             AstNode::Number(_) | AstNode::Identifier(_) | AstNode::StringLiteral(_) => {
                 Ok(node)
