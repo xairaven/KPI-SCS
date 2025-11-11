@@ -152,7 +152,6 @@ impl AbstractSyntaxTree {
             AstNode::FunctionCall { name, arguments } => {
                 let args = arguments
                     .iter()
-                    // Arguments in a function call are new contexts.
                     .map(|arg| Self::node_to_pretty_string(arg, 0))
                     .collect::<Vec<String>>()
                     .join(", ");
@@ -165,7 +164,7 @@ impl AbstractSyntaxTree {
             } => {
                 let idx = indices
                     .iter()
-                    .map(|idx| Self::node_to_pretty_string(idx, 0)) // Also new contexts.
+                    .map(|idx| Self::node_to_pretty_string(idx, 0))
                     .map(|s| format!("[{}]", s))
                     .collect::<String>();
                 format!("{}{}", identifier, idx)
@@ -175,13 +174,10 @@ impl AbstractSyntaxTree {
                 operation,
                 expression,
             } => {
-                // Unary operations (like -) have high precedence.
                 let my_precedence = 3;
-                // Pass our high precedence to the child.
                 let expr_str = Self::node_to_pretty_string(expression, my_precedence);
                 let result = format!("{}{}", operation, expr_str);
 
-                // Wrap *this* expression if its precedence is lower than the parent's.
                 if my_precedence < parent_precedence {
                     format!("({})", result)
                 } else {
@@ -196,32 +192,41 @@ impl AbstractSyntaxTree {
             } => {
                 let my_precedence = operation.precedence();
 
-                // Handle the `A + (-B)` case to format it as "A - B"
-                if *operation == BinaryOperationKind::Plus
-                    && let AstNode::UnaryOperation {
+                if *operation == BinaryOperationKind::Plus {
+                    // Case 1: A + (-B)  =>  "A - B"
+                    if let AstNode::UnaryOperation {
                         operation: UnaryOperationKind::Minus,
                         expression: inner_right,
                     } = right.as_ref()
-                {
-                    // This is the A + (-B) case.
-                    // We will format it as "A - B"
-                    // `my_precedence` is still 1 (for Plus/Minus)
+                    {
+                        let l_str = Self::node_to_pretty_string(left, my_precedence);
+                        let r_str =
+                            Self::node_to_pretty_string(inner_right, my_precedence + 1);
+                        let result = format!("{} - {}", l_str, r_str);
+                        if my_precedence < parent_precedence {
+                            return format!("({})", result);
+                        } else {
+                            return result;
+                        }
+                    }
 
-                    // Precedence for `A` (left) is for `Plus` (1)
-                    let l_str = Self::node_to_pretty_string(left, my_precedence);
-
-                    // Precedence for `B` (inner_right) is for `Minus` (1+1=2)
-                    // This ensures `A - (B * C)` is correct
-                    let r_str =
-                        Self::node_to_pretty_string(inner_right, my_precedence + 1);
-
-                    let result = format!("{} - {}", l_str, r_str);
-
-                    // Wrap if *our* precedence (as `Plus`) is lower than parent's
-                    if my_precedence < parent_precedence {
-                        return format!("({})", result);
-                    } else {
-                        return result;
+                    // Case 2 (NEW): (-A) + B  =>  "B - A"
+                    if let AstNode::UnaryOperation {
+                        operation: UnaryOperationKind::Minus,
+                        expression: inner_left,
+                    } = left.as_ref()
+                    {
+                        // We format this as "B - A"
+                        let l_str_inner =
+                            Self::node_to_pretty_string(inner_left, my_precedence + 1);
+                        let r_str = Self::node_to_pretty_string(right, my_precedence);
+                        // Note the swap: r_str - l_str_inner
+                        let result = format!("{} - {}", r_str, l_str_inner);
+                        if my_precedence < parent_precedence {
+                            return format!("({})", result);
+                        } else {
+                            return result;
+                        }
                     }
                 }
 
@@ -241,12 +246,6 @@ impl AbstractSyntaxTree {
 
                 let result = format!("{} {} {}", l_str, operation, r_str);
 
-                // Wrap *this* expression if its precedence is lower than the parent's.
-                // e.g., (A + B) * C. The `+` node (precedence 1) is a child
-                // of `*` (precedence 2). `node_to_pretty_string` for `+`
-                // will receive `parent_precedence = 2`.
-                // `my_precedence (1) < parent_precedence (2)` will be true,
-                // so it will return "(a + b)".
                 if my_precedence < parent_precedence {
                     format!("({})", result)
                 } else {
