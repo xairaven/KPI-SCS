@@ -3,18 +3,18 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("Type: I/O. {0}")]
+    #[error("Тип: I/O. {0}")]
     IO(IOError),
 }
 
 #[derive(Debug, Error)]
 pub enum IOError {
-    #[error("Code file not found. {0}")]
+    #[error("Файл з кодом не був знайдений. {0}")]
     CodeFileNotFound(io::Error),
 
-    #[error("Failed to read code file. {0}")]
+    #[error("Не вдалося прочитати файл з кодом. {0}")]
     FailedToReadCodeFile(io::Error),
 
-    #[error("Failed to write into output file. {0}")]
+    #[error("Не вдалося записати результат в файл. {0}")]
     FailedToWriteIntoOutputFile(io::Error),
 }

@@ -2,11 +2,13 @@ use crate::cli::Cli;
 use colored::Colorize;
 
 fn main() {
-    let run_result = Cli::run();
+    let result = Cli::run();
 
-    if let Err(e) = run_result {
-        eprintln!("{}. {e}", "Error".red().bold());
-    }
+    result.unwrap_or_else(|err| {
+        eprintln!("{}. {err}", "Помилка".red().bold());
+
+        std::process::exit(1);
+    });
 }
 
 pub mod cli;

@@ -11,10 +11,10 @@ pub struct Token {
 impl Token {
     pub fn display_position(&self) -> String {
         if self.position.start + 1 == self.position.end {
-            format!("[Position: {}]", self.position.start + 1)
+            format!("[Позиція: {}]", self.position.start + 1)
         } else {
             format!(
-                "[Position: {}..{}]",
+                "[Позиція: {}..{}]",
                 self.position.start + 1,
                 self.position.end
             )

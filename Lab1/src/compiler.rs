@@ -14,19 +14,19 @@ fn report(source: &str, syntax_errors: Vec<SyntaxError>, is_pretty: bool) -> Str
     let mut result = String::new();
 
     let first_line = match syntax_errors.len() {
-        0 => format!("{}: {}\n", "Analysis result".bold(), "OK!".bold().green()),
+        0 => format!("{}: {}\n", "Результат аналізу".bold(), "OK!".bold().green()),
         n => {
             format!(
-                "{}: Found {} {}.\n",
-                "Analysis result".bold(),
-                n.to_string().red(),
-                "errors".red()
+                "{}: Знайдено {}: {}.\n",
+                "Результат аналізу".bold(),
+                "помилок".red(),
+                n.to_string().red()
             )
         },
     };
     result.push_str(&first_line);
 
-    result.push_str(&format!("\n{}:\n", "Code".bold().yellow()));
+    result.push_str(&format!("\n{}:\n", "Код".bold().yellow()));
     result.push_str(&format!("{}\n", source.replace("\n", " ")));
 
     if !syntax_errors.is_empty() {

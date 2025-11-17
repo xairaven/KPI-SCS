@@ -4,19 +4,19 @@ use clap::Parser;
 use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
-#[command(author = "Alex Kovalov", version = "0.0.1")]
+#[command(author = "Sherstiuk Denys", version = "0.1.0")]
 pub struct Cli {
-    #[arg(short = 'c', long, help = "Code file.")]
+    #[arg(short = 'c', long, help = "Файл з кодом.")]
     pub code_file: PathBuf,
 
     #[arg(
         short = 'o',
         long,
-        help = "Output file name. If not provided, output will be printed to console."
+        help = "Назва вихідного файлу. Якщо не вказана, результат буде виведений в консоль."
     )]
     pub output_file: Option<PathBuf>,
 
-    #[arg(short = 'p', action, long, help = "Pretty print output.")]
+    #[arg(short = 'p', action, long, help = "Красивий вивід.")]
     pub pretty: bool,
 }
 
