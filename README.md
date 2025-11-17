@@ -1,1 +1,0 @@
-# Software of Computer Systems. University Labs.
