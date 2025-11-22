@@ -4,20 +4,19 @@ version = "0.1.0"
 authors = ["Sherstiuk Denys"]
 
 edition = "2024"
-rust-version = "1.90"
+rust-version = "1.91"
 
 categories = ["compilers"]
 keywords = ["kpi", "compilers"]
 
 readme = "../README.md"
 license = "MIT"
-repository = "https://github.com/xairaven/KPI-SCS"
 
 [lints]
 workspace = true
 
 [dependencies]
-clap = { version = "4.5.51", features = ["derive"] }
+clap = { version = "4.5.53", features = ["derive"] }
 colored = "3.0.0"
 strum_macros = "0.27.2"
 thiserror = "2.0.17"

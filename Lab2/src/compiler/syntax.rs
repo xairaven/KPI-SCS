@@ -58,38 +58,40 @@ pub enum SyntaxErrorKind {
 impl std::fmt::Display for SyntaxError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let text = match self.kind {
-            SyntaxErrorKind::EmptyBrackets => "Empty array access.",
-            SyntaxErrorKind::EmptyParentheses => "Empty function or grouping.",
+            SyntaxErrorKind::EmptyBrackets => "Порожні квадратні дужки.",
+            SyntaxErrorKind::EmptyParentheses => "Порожнє групування.",
             SyntaxErrorKind::InvalidBinaryLiteral => match &self.token.value {
-                None => "Invalid binary literal.",
-                Some(value) => &format!("Invalid binary literal '0{}'.", value),
+                None => "Некоректний бінарний літерал.",
+                Some(value) => &format!("Некоректний бінарний літерал '0{}'.", value),
             },
-            SyntaxErrorKind::InvalidFloat => "Invalid float.",
+            SyntaxErrorKind::InvalidFloat => "Некоректне число з плаваючою комою.",
             SyntaxErrorKind::InvalidFunctionName => match &self.token.value {
-                None => "Unexpected function name.",
-                Some(value) => &format!("Unexpected function name '{}'.", value),
+                None => "Неочікувана назва функції.",
+                Some(value) => &format!("Неочікувана назва функції '{}'.", value),
             },
             SyntaxErrorKind::InvalidHexLiteral => match &self.token.value {
-                None => "Invalid hexadecimal literal.",
-                Some(value) => &format!("Invalid hexadecimal literal '0{}'.", value),
+                None => "Некоректний шістнадцятковий літерал.",
+                Some(value) => {
+                    &format!("Некоректний шістнадцятковий літерал '0{}'.", value)
+                },
             },
-            SyntaxErrorKind::InvalidVariableName => "Invalid variable name.",
-            SyntaxErrorKind::MissingArgument => "Missing function argument.",
-            SyntaxErrorKind::UnexpectedBrackets => "Unexpected brackets.",
-            SyntaxErrorKind::UnexpectedComma => "Unexpected comma.",
-            SyntaxErrorKind::UnexpectedDot => "Unexpected dot.",
-            SyntaxErrorKind::UnexpectedEndOfExpression => "Unexpected end of expression.",
-            SyntaxErrorKind::UnexpectedNewLine => "Unexpected newline.",
+            SyntaxErrorKind::InvalidVariableName => "Некоректне ім'я змінної.",
+            SyntaxErrorKind::MissingArgument => "Відсутній очікуваний аргумент функції.",
+            SyntaxErrorKind::UnexpectedBrackets => "Неочікувані квадратні дужки.",
+            SyntaxErrorKind::UnexpectedComma => "Неочікувана кома.",
+            SyntaxErrorKind::UnexpectedDot => "Неочікувана крапка.",
+            SyntaxErrorKind::UnexpectedEndOfExpression => "Неочікуваний кінець виразу.",
+            SyntaxErrorKind::UnexpectedNewLine => "Неочікуваний перенос рядку.",
             SyntaxErrorKind::UnexpectedOperand => match &self.token.value {
-                None => "Unexpected operand.",
-                Some(value) => &format!("Unexpected operand '{}'.", value),
+                None => "Неочікуваний операнд.",
+                Some(value) => &format!("Неочікуваний операнд '{}'.", value),
             },
-            SyntaxErrorKind::UnexpectedOperator => "Unexpected operator.",
-            SyntaxErrorKind::UnexpectedParenthesis => "Unexpected parenthesis.",
-            SyntaxErrorKind::UnknownToken => "Unknown token.",
-            SyntaxErrorKind::UnmatchedBrackets => "Unmatched brackets.",
-            SyntaxErrorKind::UnmatchedParenthesis => "Unmatched parenthesis.",
-            SyntaxErrorKind::UnmatchedQuotationMark => "Unmatched quotation mark.",
+            SyntaxErrorKind::UnexpectedOperator => "Неочікуваний оператор.",
+            SyntaxErrorKind::UnexpectedParenthesis => "Неочікувані дужки.",
+            SyntaxErrorKind::UnknownToken => "Невідомий токен.",
+            SyntaxErrorKind::UnmatchedBrackets => "Квадратні дужки без пари.",
+            SyntaxErrorKind::UnmatchedParenthesis => "Дужки без пари.",
+            SyntaxErrorKind::UnmatchedQuotationMark => "Лапки без пари.",
         };
 
         write!(f, "{}", text)
@@ -557,21 +559,21 @@ pub fn report(source: &str, syntax_errors: Vec<SyntaxError>, is_pretty: bool) {
     let first_line = match syntax_errors.len() {
         0 => format!(
             "{}: {}",
-            "Lexical & syntax analysis".bold(),
-            "OK!".bold().green()
+            "Лексичний і синтаксичний аналіз".bold(),
+            "Успішно!".bold().green()
         ),
         n => {
             format!(
-                "{}: Found {} {}.",
-                "Lexical & syntax analysis".bold(),
+                "{}: Знайдено {} {}.",
+                "Лексичний і синтаксичний аналіз".bold(),
                 n.to_string().red(),
-                "errors".red()
+                "помилок".red()
             )
         },
     };
     log::warn!("{}", first_line);
 
-    log::warn!("{}:\n{}", "Code".bold().yellow(), source.replace("\n", " "));
+    log::warn!("{}:\n{}", "Код".bold().yellow(), source.replace("\n", " "));
 
     if !syntax_errors.is_empty() {
         match is_pretty {

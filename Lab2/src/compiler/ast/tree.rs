@@ -357,14 +357,14 @@ impl AstParser {
 pub fn report_success(tree: &AbstractSyntaxTree) {
     log::warn!(
         "{} {}.",
-        "Abstract-Syntax Tree generation",
-        "success".bold().green()
+        "Генерація абстрактного синтаксичного дерева",
+        "успішна".bold().green()
     );
     log::info!("{}", tree.pretty_print());
 }
 
 pub fn report_error(error: AstError) {
-    log::error!("{} {}", "AST error:".bold().red(), error);
+    log::error!("{} {}", "Помилка АСТ:".bold().red(), error);
 }
 
 #[derive(Debug, PartialEq)]
@@ -386,29 +386,29 @@ impl std::fmt::Display for AstError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let text = match self {
             Self::ExpectedCommaOrRightParenthesis(lexeme) => &format!(
-                "Expected ',' or ')', but found \"{}\".",
+                "Очікується ',' або ')', але знайдено \"{}\".",
                 lexeme.display_type()
             ),
-            Self::ExpectedRightBracket => "Expected right bracket.",
-            Self::ExpectedRightParenthesis => "Expected right parenthesis.",
-            Self::NotExpectedEndOfExpression => "Not expected end of expression.",
+            Self::ExpectedRightBracket => "Очікується права скобка.",
+            Self::ExpectedRightParenthesis => "Очікується права дужка.",
+            Self::NotExpectedEndOfExpression => "Неочікуваний кінець виразу.",
             Self::NotExpectedLexeme(lexeme) => {
-                &format!("Not expected lexeme \"{}\".", lexeme.display_type())
+                &format!("Неочікувана лексема \"{}\".", lexeme.display_type())
             },
             Self::StringOutsideFunction(string) => {
-                &format!("String literal \"{}\" outside function call.", string)
+                &format!("Рядок \"{}\" поза викликом функції.", string)
             },
             Self::UnreachableLexeme(lexeme) => {
-                &format!("Unreachable lexeme \"{}\".", lexeme.display_type())
+                &format!("Недоступна лексема \"{}\".", lexeme.display_type())
             },
 
             Self::CannotBuildEmptyTree => {
-                "Cannot build a balanced tree from zero operands"
+                "Неможливо побудувати збалансоване дерево з 0 операндів"
             },
             Self::FailedPopFromQueue => {
-                "Failed to pop node from the queue during tree construction"
+                "Невдала спроба отримати вузол з черги під час генерації дерева"
             },
-            Self::DivisionByZero(node) => &format!("Division by zero. Node: {:#?}", node),
+            Self::DivisionByZero(node) => &format!("Ділення на нуль. Вузол: {:#?}", node),
         };
 
         write!(f, "{}", text)

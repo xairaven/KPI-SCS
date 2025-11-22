@@ -226,8 +226,8 @@ impl AbstractSyntaxTree {
 pub fn report_success(tree: &AbstractSyntaxTree) {
     log::warn!(
         "{} {}.",
-        "Transformed Abstract-Syntax Tree generation",
-        "success".bold().green()
+        "Генерація трансформованого абстрактного синтаксичного дерева:",
+        "успішна".bold().green()
     );
     log::info!("{}", tree.pretty_print());
 }
@@ -235,7 +235,9 @@ pub fn report_success(tree: &AbstractSyntaxTree) {
 pub fn report_error(error: AstError) {
     log::error!(
         "{} {}",
-        "Transformed Abstract-Syntax Tree generation:".bold().red(),
+        "Трансформування абстрактного синтаксичного дерева:"
+            .bold()
+            .red(),
         error
     );
 }

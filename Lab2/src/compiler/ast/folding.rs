@@ -116,14 +116,14 @@ impl AbstractSyntaxTree {
 pub fn report_success(tree: &AbstractSyntaxTree) {
     log::warn!(
         "{} {}.",
-        "Folding Abstract-Syntax Tree",
-        "success".bold().green()
+        "Згортання дерева",
+        "пройшло успішно".bold().green()
     );
     log::info!("{}", tree.pretty_print());
 }
 
 pub fn report_error(error: AstError) {
-    log::error!("{} {}", "Folding AST error:".bold().red(), error);
+    log::error!("{} {}", "Помилка при згортанні дерева:".bold().red(), error);
 }
 
 #[cfg(test)]

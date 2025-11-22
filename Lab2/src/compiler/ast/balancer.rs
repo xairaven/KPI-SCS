@@ -182,15 +182,19 @@ impl AbstractSyntaxTree {
 
 pub fn report_success(tree: &AbstractSyntaxTree) {
     log::warn!(
-        "{} {}.",
-        "Balanced Abstract-Syntax Tree generation",
-        "success".bold().green()
+        "{}: {}!",
+        "Побудова збалансованого дерева",
+        "ОК".bold().green()
     );
     log::info!("{}", tree.pretty_print());
 }
 
 pub fn report_error(error: AstError) {
-    log::error!("{} {}", "Balanced AST error:".bold().red(), error);
+    log::error!(
+        "{} {}",
+        "Помилка при побудові збалансованого дерева:".bold().red(),
+        error
+    );
 }
 
 #[cfg(test)]

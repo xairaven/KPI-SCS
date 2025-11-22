@@ -32,22 +32,22 @@ pub enum Lexeme {
 impl Lexeme {
     pub fn display_type(&self) -> &str {
         match self {
-            Lexeme::Identifier(_) => "Identifier",
-            Lexeme::Number(_) => "Number",
-            Lexeme::Plus => "Plus",
-            Lexeme::Minus => "Minus",
-            Lexeme::Multiply => "Multiply",
-            Lexeme::Divide => "Divide",
-            Lexeme::Modulus => "Modulus",
-            Lexeme::LeftParenthesis => "Left Parenthesis",
-            Lexeme::RightParenthesis => "Right Parenthesis",
-            Lexeme::LeftBracket => "Left Bracket",
-            Lexeme::RightBracket => "Right Bracket",
-            Lexeme::Not => "Not",
-            Lexeme::And => "And",
-            Lexeme::Or => "Or",
-            Lexeme::Comma => "Comma",
-            Lexeme::String(_) => "String",
+            Lexeme::Identifier(_) => "Ідентифікатор",
+            Lexeme::Number(_) => "Число",
+            Lexeme::Plus => "Плюс",
+            Lexeme::Minus => "Мінус",
+            Lexeme::Multiply => "Множення",
+            Lexeme::Divide => "Ділення",
+            Lexeme::Modulus => "Модуль",
+            Lexeme::LeftParenthesis => "Ліва дужка",
+            Lexeme::RightParenthesis => "Права дужка",
+            Lexeme::LeftBracket => "Ліва скобка",
+            Lexeme::RightBracket => "Права скобка",
+            Lexeme::Not => "Ні",
+            Lexeme::And => "І",
+            Lexeme::Or => "Чи",
+            Lexeme::Comma => "Кома",
+            Lexeme::String(_) => "Рядок",
         }
     }
 }
@@ -160,8 +160,8 @@ impl Lexer {
 pub fn report_success(lexemes: &[Lexeme]) {
     let length = lexemes.len();
     let first_line = format!(
-        "Lexer {} {} lexemes.",
-        "successfully produced".bold().green(),
+        "Лексер {} {} лексем.",
+        "успішно згенерував".bold().green(),
         length.to_string().bold()
     )
     .to_string();
@@ -175,7 +175,7 @@ pub fn report_success(lexemes: &[Lexeme]) {
 }
 
 pub fn report_error(error: LexerError) {
-    log::error!("{} {}", "Lexer error:".bold().red(), error);
+    log::error!("{} {}", "Помилка лексеру:".bold().red(), error);
 }
 
 #[derive(Debug)]
@@ -189,26 +189,26 @@ impl std::fmt::Display for LexerError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let text = match self {
             Self::NotExpectedToken(token) => format!(
-                "Not expected token with kind \"{}\" [{}..{}]",
+                "Неочікуваний токен типу \"{}\" [{}..{}]",
                 token.kind,
                 token.position.start,
                 token.position.end - 1
             ),
             Self::ParseFloatError(token, error) => format!(
-                "Failed to parse float [{}..{}]: {}",
+                "Помилка читання числа з плаваючою комою float [{}..{}]: {}",
                 token.position.start,
                 token.position.end - 1,
                 error
             ),
             Self::TokenMissingValue(token) => format!(
-                "Token with kind \"{}\" [{}..{}] is missing a value",
+                "Токен типу \"{}\" [{}..{}] не має значення",
                 token.kind,
                 token.position.start,
                 token.position.end - 1
             ),
         };
 
-        write!(f, "Lexer error. {:?}", text)
+        write!(f, "Помилка лексеру. {:?}", text)
     }
 }
 

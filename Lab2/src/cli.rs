@@ -6,26 +6,26 @@ use log::LevelFilter;
 use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
-#[command(author = "Alex Kovalov", version = "0.0.1")]
+#[command(author = "Denys Sherstiuk", version = "0.0.1")]
 pub struct Cli {
-    #[arg(short = 'c', long, help = "Code file.")]
+    #[arg(short = 'c', long, help = "Файл з кодом.")]
     pub code_file: PathBuf,
 
     #[arg(
         short = 'o',
         long,
-        help = "Output file name. If not provided, output will be printed to console."
+        help = "Назва вихідного файлу. Якщо не вказана, результат буде виведений в консоль."
     )]
     pub output_file: Option<PathBuf>,
 
-    #[arg(short = 'p', action, long, help = "Pretty print output.")]
+    #[arg(short = 'p', action, long, help = "Красивий вивід.")]
     pub pretty: bool,
 
     #[arg(
         short = 'l',
         long,
         default_value_t = LevelFilter::Warn,
-        help = "Set the logging level (Error, Warn, Info, Debug, Trace)."
+        help = "Встановити рівень логування (Error, Warn, Info, Debug, Trace)."
     )]
     pub log_level: LevelFilter,
 }

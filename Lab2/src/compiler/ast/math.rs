@@ -202,17 +202,17 @@ impl AbstractSyntaxTree {
 
 pub fn report_success(tree: &AbstractSyntaxTree, run: u8) {
     log::warn!(
-        "Computing constants of Abstract-Syntax Tree (Run #{}) {}.",
+        "Обчислення констант дерева (Крок #{}). {}.",
         run.to_string().bright_magenta().italic(),
-        "success".bold().green()
+        "Успіх!".bold().green()
     );
     log::info!("{}", tree.pretty_print());
 }
 
 pub fn report_error(error: AstError, run: u8) {
     log::error!(
-        "{} (Run #{}) {}",
-        "Computing constants of Abstract-Syntax Tree:".bold().red(),
+        "{} (Крок #{}) {}",
+        "Обчислення констант дерева:".bold().red(),
         run.to_string().bright_magenta().italic(),
         error
     );
@@ -222,9 +222,9 @@ pub fn check_finalization(tree: &AbstractSyntaxTree) -> bool {
     if let AstNode::Number(number) = &tree.peek {
         log::warn!(
             "{} = {}. {}.",
-            "Computing solved code, result".bold().green(),
+            "Порахований вираз, результат".bold().green(),
             number,
-            "Further optimization is not needed".bold().red(),
+            "Подальша оптимізація не потрібна".bold().red(),
         );
         return true;
     }

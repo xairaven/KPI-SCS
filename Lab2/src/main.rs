@@ -5,7 +5,7 @@ fn main() {
     let run_result = Cli::run();
 
     if let Err(e) = run_result {
-        eprintln!("{}. {e}", "Error".red().bold());
+        eprintln!("{}. {e}", "Помилка".red().bold());
     }
 }
 

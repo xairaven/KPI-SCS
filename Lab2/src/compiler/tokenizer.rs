@@ -11,10 +11,10 @@ pub struct Token {
 impl Token {
     pub fn display_position(&self) -> String {
         if self.position.start + 1 == self.position.end {
-            format!("[Position: {}]", self.position.start + 1)
+            format!("[Позиція: {}]", self.position.start + 1)
         } else {
             format!(
-                "[Position: {}..{}]",
+                "[Позиція: {}..{}]",
                 self.position.start + 1,
                 self.position.end
             )
@@ -25,7 +25,7 @@ impl Token {
         let text = match self.kind {
             TokenType::Identifier | TokenType::Number => match &self.value {
                 Some(value) => value.as_str(),
-                None => "NONE",
+                None => "НЕМАЄ ЗНАЧЕННЯ",
             },
             TokenType::Plus => "+",
             TokenType::Minus => "-",
@@ -45,7 +45,7 @@ impl Token {
             TokenType::Space => " ",
             TokenType::Tab => "\\t",
             TokenType::NewLine => "\\n",
-            TokenType::Unknown => "<UNKNOWN>",
+            TokenType::Unknown => "<НЕВІДОМО>",
         };
 
         text.to_string()
