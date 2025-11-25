@@ -1,7 +1,7 @@
+use colored::Colorize;
 use crate::compiler::ast::tree::{
     AbstractSyntaxTree, AstError, AstNode, BinaryOperationKind, UnaryOperationKind,
 };
-use colored::Colorize;
 
 impl AbstractSyntaxTree {
     pub fn transform(self) -> Result<AbstractSyntaxTree, AstError> {
@@ -11,7 +11,7 @@ impl AbstractSyntaxTree {
     }
 
     pub fn transform_recursive(node: AstNode) -> Result<AstNode, AstError> {
-        match &node {
+        match node {
             AstNode::Number(_) | AstNode::Identifier(_) | AstNode::StringLiteral(_) => {
                 Ok(node)
             },
@@ -57,45 +57,7 @@ impl AbstractSyntaxTree {
                                 })
                             },
 
-                            // Rule: -(A - B) => (-A) + B
-                            AstNode::BinaryOperation {
-                                operation: BinaryOperationKind::Minus,
-                                left,
-                                right,
-                            } => {
-                                let new_left = AstNode::UnaryOperation {
-                                    operation: UnaryOperationKind::Minus,
-                                    expression: left.clone(),
-                                };
-                                Self::transform_recursive(AstNode::BinaryOperation {
-                                    operation: BinaryOperationKind::Plus,
-                                    left: Box::new(new_left),
-                                    right: right.clone(),
-                                })
-                            },
-
-                            // Rule: -(Num * B) => -Num * B
-                            AstNode::BinaryOperation {
-                                operation: BinaryOperationKind::Multiply,
-                                left,
-                                right,
-                            } => {
-                                if let AstNode::Number(number) = *left.clone() {
-                                    return Ok(AstNode::BinaryOperation {
-                                        operation: BinaryOperationKind::Multiply,
-                                        left: Box::new(AstNode::Number(-number)),
-                                        right: Box::new(*right.clone()),
-                                    });
-                                }
-
-                                Ok(AstNode::UnaryOperation {
-                                    operation: UnaryOperationKind::Minus,
-                                    expression: Box::new(transformed_expression),
-                                })
-                            },
-
-                            // Other cases (for example, -(A*B) or just -A)
-                            // just leaving them (for example -(A*B) or just -A)
+                            // Others - it is what it is
                             _ => Ok(AstNode::UnaryOperation {
                                 operation: UnaryOperationKind::Minus,
                                 expression: Box::new(transformed_expression),
@@ -123,86 +85,33 @@ impl AbstractSyntaxTree {
                 left,
                 right,
             } => {
-                let transformed_left = Self::transform_recursive(*left.clone())?;
-                let transformed_right = Self::transform_recursive(*right.clone())?;
+                // First we recursively transform the subtrees so that they are also optimized
+                // But for chains (Minus/Divide) we do this inside helpers,
+                // so here we just pass the structure on.
 
                 match operation {
-                    // Rule 1: A - B  =>  A + (-B)
+                    // Rule: A - S - D - F => A - (S + D + F)
                     BinaryOperationKind::Minus => {
-                        match &transformed_right {
-                            AstNode::Number(number) if number.is_sign_negative() => {
-                                // Rule 1: A - (-B)  =>  A + B
-                                Ok(AstNode::BinaryOperation {
-                                    operation: BinaryOperationKind::Plus,
-                                    left: Box::new(transformed_left),
-                                    right: Box::new(AstNode::Number(f64::abs(*number))),
-                                })
-                            },
-                            AstNode::Number(number) => {
-                                // Rule 1: A - B  =>  A + (-B)
-                                Ok(AstNode::BinaryOperation {
-                                    operation: BinaryOperationKind::Plus,
-                                    left: Box::new(transformed_left),
-                                    right: Box::new(AstNode::Number(-number)),
-                                })
-                            },
-                            _ => {
-                                let new_right = AstNode::UnaryOperation {
-                                    operation: UnaryOperationKind::Minus,
-                                    expression: Box::new(transformed_right),
-                                };
-
-                                let result_node = AstNode::BinaryOperation {
-                                    operation: BinaryOperationKind::Plus,
-                                    left: Box::new(transformed_left),
-                                    right: Box::new(new_right),
-                                };
-                                Self::transform_recursive(result_node)
-                            },
-                        }
+                        let node = AstNode::BinaryOperation { operation, left, right };
+                        Self::optimize_subtraction_chain(node)
                     },
 
-                    // Rule 2: A / B  =>  A * (1 / B)
+                    // Rule: A / S / D / F => A / (S * D * F)
                     BinaryOperationKind::Divide => {
-                        if let AstNode::Number(number) = transformed_left
-                            && number == 1.0
-                        {
-                            return Ok(AstNode::BinaryOperation {
-                                operation: BinaryOperationKind::Divide,
-                                left: Box::new(transformed_left),
-                                right: Box::new(transformed_right),
-                            });
-                        }
-
-                        if let AstNode::Number(number) = transformed_right {
-                            return if number == 0.0 {
-                                Err(AstError::DivisionByZero(node))
-                            } else {
-                                Ok(AstNode::BinaryOperation {
-                                    operation: BinaryOperationKind::Multiply,
-                                    left: Box::new(transformed_left),
-                                    right: Box::new(AstNode::Number(1.0 / number)),
-                                })
-                            };
-                        }
-                        Ok(AstNode::BinaryOperation {
-                            operation: BinaryOperationKind::Multiply,
-                            left: Box::new(transformed_left),
-                            right: Box::new(AstNode::BinaryOperation {
-                                operation: BinaryOperationKind::Divide,
-                                left: Box::new(AstNode::Number(1.0)), // "1"
-                                right: Box::new(transformed_right),   // "B"
-                            }),
-                        })
+                        let node = AstNode::BinaryOperation { operation, left, right };
+                        Self::optimize_division_chain(node)
                     },
 
-                    // Other operations (Plus, Multiply, And, Or)
-                    // left without editing, but with transformed kids.
-                    _ => Ok(AstNode::BinaryOperation {
-                        operation: operation.clone(),
-                        left: Box::new(transformed_left),
-                        right: Box::new(transformed_right),
-                    }),
+                    // For Plus, Multiply and others, we simply process the children recursively
+                    _ => {
+                        let transformed_left = Self::transform_recursive(*left)?;
+                        let transformed_right = Self::transform_recursive(*right)?;
+                        Ok(AstNode::BinaryOperation {
+                            operation: operation.clone(),
+                            left: Box::new(transformed_left),
+                            right: Box::new(transformed_right),
+                        })
+                    }
                 }
             },
 
@@ -220,6 +129,108 @@ impl AbstractSyntaxTree {
                 })
             },
         }
+    }
+
+    // --- Helper Functions ---
+    /// Optimizes the subtraction chain: A - B - C -> A - (B + C)
+    fn optimize_subtraction_chain(node: AstNode) -> Result<AstNode, AstError> {
+        // 1. We collect the chain: head=A, terms=[B, C]
+        let (head, terms) = Self::collect_left_associative_chain(node, BinaryOperationKind::Minus);
+
+        // Recursively transform the "head"
+        let transformed_head = Self::transform_recursive(head)?;
+
+        if terms.is_empty() {
+            return Ok(transformed_head);
+        }
+
+        // Recursively transform all subtractions
+        let mut transformed_terms = Vec::new();
+        for term in terms {
+            transformed_terms.push(Self::transform_recursive(term)?);
+        }
+
+        // 2. We build the sum of the subtractions: (B + C)
+        let sum_node = Self::build_left_associative_tree(transformed_terms, BinaryOperationKind::Plus);
+
+        // 3. Return: A - (Sum)
+        Ok(AstNode::BinaryOperation {
+            operation: BinaryOperationKind::Minus,
+            left: Box::new(transformed_head),
+            right: Box::new(sum_node),
+        })
+    }
+
+    /// Optimizes the division chain: A / B / C -> A / (B * C)
+    fn optimize_division_chain(node: AstNode) -> Result<AstNode, AstError> {
+        // 1. We collect the chain: head=A, terms=[B, C]
+        let (head, terms) = Self::collect_left_associative_chain(node, BinaryOperationKind::Divide);
+
+        let transformed_head = Self::transform_recursive(head)?;
+
+        if terms.is_empty() {
+            return Ok(transformed_head);
+        }
+
+        let mut transformed_terms = Vec::new();
+        for term in terms {
+            transformed_terms.push(Self::transform_recursive(term)?);
+        }
+
+        // 2. We construct the product of the divisors: (B * C)
+        let product_node = Self::build_left_associative_tree(transformed_terms, BinaryOperationKind::Multiply);
+
+        // 3. Return: A / (Product)
+        Ok(AstNode::BinaryOperation {
+            operation: BinaryOperationKind::Divide,
+            left: Box::new(transformed_head),
+            right: Box::new(product_node),
+        })
+    }
+
+    /// Helper function: expands left associative operations into a flat list.
+    /// (A op B) op C -> return (A, [B, C])
+    fn collect_left_associative_chain(
+        mut node: AstNode,
+        target_op: BinaryOperationKind
+    ) -> (AstNode, Vec<AstNode>) {
+        let mut terms = Vec::new();
+
+        // We move down the left side until the operation matches
+        loop {
+            match node {
+                AstNode::BinaryOperation { operation, left, right } if operation == target_op => {
+                    terms.push(*right); // We store the right operand (C, then B...)
+                    node = *left;       // Let's go left.
+                }
+                _ => {
+                    // Reached the "head" (A), which is not this operation
+                    terms.reverse(); // We collected from the end ([C, B]), so we unwrap ([B, C])
+                    return (node, terms);
+                }
+            }
+        }
+    }
+
+    /// Helper function: reassembles the tree using a new operation.
+    /// terms=[B, C, D], op=Plus -> ((B + C) + D)
+    fn build_left_associative_tree(
+        terms: Vec<AstNode>,
+        op: BinaryOperationKind
+    ) -> AstNode {
+        let mut iter = terms.into_iter();
+        // Гарантовано є хоча б один елемент, бо ми перевіряємо !is_empty() вище
+        let mut current = iter.next().unwrap();
+
+        for term in iter {
+            current = AstNode::BinaryOperation {
+                operation: op.clone(),
+                left: Box::new(current),
+                right: Box::new(term),
+            };
+        }
+
+        current
     }
 }
 
