@@ -5,9 +5,20 @@ use colored::Colorize;
 
 impl AbstractSyntaxTree {
     pub fn compute(self) -> Result<AbstractSyntaxTree, AstError> {
-        let computed = Self::compute_recursive(self.peek)?;
+        let mut current_node = self.peek;
 
-        Ok(Self::from_node(computed))
+        loop {
+            // First optimization pass
+            let next_node = Self::compute_recursive(current_node.clone())?;
+
+            // If the result did not change - we have reached the final (fixed point)
+            if current_node == next_node {
+                return Ok(Self::from_node(next_node));
+            }
+
+            // If it changed - update the current node and go to the next round
+            current_node = next_node;
+        }
     }
 
     fn compute_recursive(node: AstNode) -> Result<AstNode, AstError> {
