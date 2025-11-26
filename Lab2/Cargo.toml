@@ -4,7 +4,7 @@ version = "0.0.1"
 authors = ["Alex Kovalov <alexkovalevkpi@gmail.com>"]
 
 edition = "2024"
-rust-version = "1.91"
+rust-version = "1.91.1"
 
 categories = ["compilers"]
 keywords = ["kpi", "compilers"]
@@ -17,7 +17,7 @@ repository = "https://github.com/xairaven/KPI-SCS"
 workspace = true
 
 [dependencies]
-clap = { version = "4.5.51", features = ["derive"] }
+clap = { version = "4.5.53", features = ["derive"] }
 colored = "3.0.0"
 fern = "0.7.1"
 log = "0.4.28"
