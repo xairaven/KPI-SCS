@@ -138,7 +138,13 @@ impl AbstractSyntaxTree {
                                 return Ok(computed_left);
                             }
                         }
-                        if number == &1.0 && BinaryOperationKind::Multiply == *operation {
+                        if number == &1.0
+                            && [
+                                BinaryOperationKind::Multiply,
+                                BinaryOperationKind::Divide,
+                            ]
+                            .contains(operation)
+                        {
                             return Ok(computed_left);
                         }
 
