@@ -155,6 +155,37 @@ impl AbstractSyntaxTree {
                             });
                         }
 
+                        // (For example -> ((a * 2) - 5) + 5) -> (a * 2) + 0
+                        if [BinaryOperationKind::Plus, BinaryOperationKind::Minus]
+                            .contains(operation)
+                            && let AstNode::BinaryOperation {
+                                operation: inner_operation,
+                                left: inner_left,
+                                right: inner_right,
+                            } = &computed_left
+                            && [BinaryOperationKind::Plus, BinaryOperationKind::Minus]
+                                .contains(inner_operation)
+                            && let AstNode::Number(inner_number) = **inner_right
+                        {
+                            let new_left = inner_left.clone();
+
+                            let inner_number =
+                                match inner_operation.eq(&BinaryOperationKind::Minus) {
+                                    true => -inner_number,
+                                    false => inner_number,
+                                };
+                            let number = match operation.eq(&BinaryOperationKind::Minus) {
+                                true => -number + inner_number,
+                                false => *number + inner_number,
+                            };
+
+                            return Ok(AstNode::BinaryOperation {
+                                operation: BinaryOperationKind::Plus,
+                                left: new_left,
+                                right: Box::new(AstNode::Number(number)),
+                            });
+                        }
+
                         Ok(AstNode::BinaryOperation {
                             operation: operation.clone(),
                             left: Box::new(computed_left),
