@@ -18,4 +18,8 @@ pub mod laws {
     pub mod distributive;
 }
 
+pub mod pcs {
+    pub mod vector;
+}
+
 pub mod reports;

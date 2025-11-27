@@ -1,5 +1,6 @@
 use crate::compiler::ast::tree::{AbstractSyntaxTree, AstError, AstParser};
 use crate::compiler::lexer::{Lexeme, Lexer, LexerError};
+use crate::compiler::pcs::vector::{SimulationResult, VectorSystemSimulator};
 use crate::compiler::reports::Reporter;
 use crate::compiler::syntax::{SyntaxAnalyzer, SyntaxError};
 use crate::compiler::tokenizer::{Token, Tokenizer};
@@ -219,5 +220,26 @@ impl CompilerContext {
             Ok(forms) => Reporter.finding_equivalent_form(&forms),
             Err(error) => error,
         }
+    }
+
+    fn run_pcs_simulation(&self) -> Result<SimulationResult, String> {
+        let ast_computing_result = self.compute_ast_4()?;
+        let ast = match ast_computing_result {
+            Ok(value) => value,
+            Err(_) => return Err(Reporter.computing(&ast_computing_result, 4)),
+        };
+        let simulation_result = VectorSystemSimulator::simulate(&ast);
+
+        Ok(simulation_result)
+    }
+
+    pub fn pcs_simulation_report(&self) -> String {
+        let computation_report = self.compute_4_report();
+        let simulation_report = match self.run_pcs_simulation() {
+            Ok(simulation_result) => Reporter.pcs_simulation(&simulation_result),
+            Err(error) => return error,
+        };
+
+        format!("{}\n\n{}", computation_report, simulation_report)
     }
 }

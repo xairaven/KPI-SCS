@@ -63,6 +63,14 @@ impl FunctionsComponent {
                     .ui
                     .set_output(context.compiler.equivalent_forms_report());
             }
+
+            ui.separator();
+
+            if ui.button("Simulate PCS").clicked() {
+                context
+                    .ui
+                    .set_output(context.compiler.pcs_simulation_report());
+            }
         });
     }
 }
