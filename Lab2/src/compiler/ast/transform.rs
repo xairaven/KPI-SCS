@@ -238,8 +238,12 @@ impl AbstractSyntaxTree {
     ) -> AstNode {
         let mut iter = terms.into_iter();
 
-        // Guaranteed to have at least one element, as we check !is_empty() above
-        let mut current = iter.next().unwrap();
+        let mut current = match iter.next() {
+            Some(term) => term,
+            None => unreachable!(
+                "Guaranteed to have at least one element, as we check !is_empty() above"
+            ),
+        };
 
         for term in iter {
             current = AstNode::BinaryOperation {

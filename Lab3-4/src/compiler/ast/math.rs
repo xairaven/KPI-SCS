@@ -6,9 +6,20 @@ use crate::utils::StringBuffer;
 
 impl AbstractSyntaxTree {
     pub fn compute(self) -> Result<AbstractSyntaxTree, AstError> {
-        let computed = Self::compute_recursive(self.peek)?;
+        let mut current_node = self.peek;
 
-        Ok(Self::from_node(computed))
+        loop {
+            // First optimization pass
+            let next_node = Self::compute_recursive(current_node.clone())?;
+
+            // If the result did not change - we have reached the final (fixed point)
+            if current_node == next_node {
+                return Ok(Self::from_node(next_node));
+            }
+
+            // If it changed - update the current node and go to the next round
+            current_node = next_node;
+        }
     }
 
     fn compute_recursive(node: AstNode) -> Result<AstNode, AstError> {
@@ -139,7 +150,13 @@ impl AbstractSyntaxTree {
                                 return Ok(computed_left);
                             }
                         }
-                        if number == &1.0 && BinaryOperationKind::Multiply == *operation {
+                        if number == &1.0
+                            && [
+                                BinaryOperationKind::Multiply,
+                                BinaryOperationKind::Divide,
+                            ]
+                            .contains(operation)
+                        {
                             return Ok(computed_left);
                         }
 
@@ -153,6 +170,37 @@ impl AbstractSyntaxTree {
                                 operation: BinaryOperationKind::Plus,
                                 left: Box::new(computed_left),
                                 right: inner_expr.clone(),
+                            });
+                        }
+
+                        // (For example -> ((a * 2) - 5) + 5) -> (a * 2) + 0
+                        if [BinaryOperationKind::Plus, BinaryOperationKind::Minus]
+                            .contains(operation)
+                            && let AstNode::BinaryOperation {
+                                operation: inner_operation,
+                                left: inner_left,
+                                right: inner_right,
+                            } = &computed_left
+                            && [BinaryOperationKind::Plus, BinaryOperationKind::Minus]
+                                .contains(inner_operation)
+                            && let AstNode::Number(inner_number) = **inner_right
+                        {
+                            let new_left = inner_left.clone();
+
+                            let inner_number =
+                                match inner_operation.eq(&BinaryOperationKind::Minus) {
+                                    true => -inner_number,
+                                    false => inner_number,
+                                };
+                            let number = match operation.eq(&BinaryOperationKind::Minus) {
+                                true => -number + inner_number,
+                                false => *number + inner_number,
+                            };
+
+                            return Ok(AstNode::BinaryOperation {
+                                operation: BinaryOperationKind::Plus,
+                                left: new_left,
+                                right: Box::new(AstNode::Number(number)),
                             });
                         }
 

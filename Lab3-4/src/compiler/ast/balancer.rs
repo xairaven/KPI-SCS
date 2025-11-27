@@ -202,10 +202,8 @@ impl Reporter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::compiler::ast::tree::AstNode::{
-        BinaryOperation, Identifier, Number, UnaryOperation,
-    };
-    use crate::compiler::ast::tree::{AstParser, UnaryOperationKind};
+    use crate::compiler::ast::tree::AstNode::{BinaryOperation, Identifier, Number};
+    use crate::compiler::ast::tree::AstParser;
     use crate::compiler::lexer::Lexer;
     use crate::compiler::syntax::SyntaxAnalyzer;
     use crate::compiler::tokenizer::Tokenizer;
@@ -271,7 +269,7 @@ mod tests {
 
         let actual_ast = balanced_ast.unwrap();
         let expected_ast = AbstractSyntaxTree::from_node(BinaryOperation {
-            operation: BinaryOperationKind::Plus,
+            operation: BinaryOperationKind::Minus,
             left: Box::new(BinaryOperation {
                 operation: BinaryOperationKind::Plus,
                 left: Box::new(BinaryOperation {
@@ -283,53 +281,29 @@ mod tests {
                         right: Box::new(Identifier("c".to_string())),
                     }),
                 }),
-                right: Box::new(BinaryOperation {
-                    operation: BinaryOperationKind::Plus,
-                    left: Box::new(Identifier("k".to_string())),
-                    right: Box::new(UnaryOperation {
-                        operation: UnaryOperationKind::Minus,
-                        expression: Box::new(Identifier("x".to_string())),
-                    }),
-                }),
+                right: Box::new(Identifier("k".to_string())),
             }),
             right: Box::new(BinaryOperation {
                 operation: BinaryOperationKind::Plus,
                 left: Box::new(BinaryOperation {
                     operation: BinaryOperationKind::Plus,
-                    left: Box::new(UnaryOperation {
-                        operation: UnaryOperationKind::Minus,
-                        expression: Box::new(Identifier("d".to_string())),
-                    }),
-                    right: Box::new(UnaryOperation {
-                        operation: UnaryOperationKind::Minus,
-                        expression: Box::new(Identifier("e".to_string())),
-                    }),
+                    left: Box::new(Identifier("x".to_string())),
+                    right: Box::new(Identifier("d".to_string())),
                 }),
-                right: Box::new(UnaryOperation {
-                    operation: UnaryOperationKind::Minus,
-                    expression: Box::new(BinaryOperation {
-                        operation: BinaryOperationKind::Multiply,
-                        left: Box::new(BinaryOperation {
-                            operation: BinaryOperationKind::Multiply,
-                            left: Box::new(Identifier("f".to_string())),
-                            right: Box::new(BinaryOperation {
-                                operation: BinaryOperationKind::Divide,
-                                left: Box::new(Number(1.0)),
-                                right: Box::new(Identifier("g".to_string())),
-                            }),
-                        }),
+                right: Box::new(BinaryOperation {
+                    operation: BinaryOperationKind::Plus,
+                    left: Box::new(Identifier("e".to_string())),
+                    right: Box::new(BinaryOperation {
+                        operation: BinaryOperationKind::Divide,
+                        left: Box::new(Identifier("f".to_string())),
                         right: Box::new(BinaryOperation {
                             operation: BinaryOperationKind::Multiply,
                             left: Box::new(BinaryOperation {
-                                operation: BinaryOperationKind::Divide,
-                                left: Box::new(Number(1.0)),
+                                operation: BinaryOperationKind::Multiply,
+                                left: Box::new(Identifier("g".to_string())),
                                 right: Box::new(Identifier("h".to_string())),
                             }),
-                            right: Box::new(BinaryOperation {
-                                operation: BinaryOperationKind::Divide,
-                                left: Box::new(Number(1.0)),
-                                right: Box::new(Identifier("q".to_string())),
-                            }),
+                            right: Box::new(Identifier("q".to_string())),
                         }),
                     }),
                 }),
@@ -431,60 +405,36 @@ mod tests {
 
         let actual_ast = balanced_ast.unwrap();
         let expected_ast = AbstractSyntaxTree::from_node(BinaryOperation {
-            operation: BinaryOperationKind::Plus,
-            left: Box::new(BinaryOperation {
+            operation: BinaryOperationKind::Minus,
+            left: Box::new(Identifier("a".to_string())),
+            right: Box::new(BinaryOperation {
                 operation: BinaryOperationKind::Plus,
                 left: Box::new(BinaryOperation {
                     operation: BinaryOperationKind::Plus,
                     left: Box::new(BinaryOperation {
                         operation: BinaryOperationKind::Plus,
-                        left: Box::new(Identifier("a".to_string())),
-                        right: Box::new(UnaryOperation {
-                            operation: UnaryOperationKind::Minus,
-                            expression: Box::new(Identifier("b".to_string())),
-                        }),
+                        left: Box::new(Identifier("b".to_string())),
+                        right: Box::new(Identifier("c".to_string())),
                     }),
                     right: Box::new(BinaryOperation {
                         operation: BinaryOperationKind::Plus,
-                        left: Box::new(UnaryOperation {
-                            operation: UnaryOperationKind::Minus,
-                            expression: Box::new(Identifier("c".to_string())),
-                        }),
-                        right: Box::new(UnaryOperation {
-                            operation: UnaryOperationKind::Minus,
-                            expression: Box::new(Identifier("d".to_string())),
-                        }),
+                        left: Box::new(Identifier("d".to_string())),
+                        right: Box::new(Identifier("e".to_string())),
                     }),
                 }),
                 right: Box::new(BinaryOperation {
                     operation: BinaryOperationKind::Plus,
                     left: Box::new(BinaryOperation {
                         operation: BinaryOperationKind::Plus,
-                        left: Box::new(UnaryOperation {
-                            operation: UnaryOperationKind::Minus,
-                            expression: Box::new(Identifier("e".to_string())),
-                        }),
-                        right: Box::new(UnaryOperation {
-                            operation: UnaryOperationKind::Minus,
-                            expression: Box::new(Identifier("f".to_string())),
-                        }),
+                        left: Box::new(Identifier("f".to_string())),
+                        right: Box::new(Identifier("g".to_string())),
                     }),
                     right: Box::new(BinaryOperation {
                         operation: BinaryOperationKind::Plus,
-                        left: Box::new(UnaryOperation {
-                            operation: UnaryOperationKind::Minus,
-                            expression: Box::new(Identifier("g".to_string())),
-                        }),
-                        right: Box::new(UnaryOperation {
-                            operation: UnaryOperationKind::Minus,
-                            expression: Box::new(Identifier("h".to_string())),
-                        }),
+                        left: Box::new(Identifier("h".to_string())),
+                        right: Box::new(Identifier("i".to_string())),
                     }),
                 }),
-            }),
-            right: Box::new(UnaryOperation {
-                operation: UnaryOperationKind::Minus,
-                expression: Box::new(Identifier("i".to_string())),
             }),
         });
 
@@ -498,69 +448,37 @@ mod tests {
         assert!(balanced_ast.is_some());
 
         let actual_ast = balanced_ast.unwrap();
-        let expected_ast = AbstractSyntaxTree::from_node(AstNode::BinaryOperation {
-            operation: BinaryOperationKind::Multiply,
-            left: Box::new(BinaryOperation {
+        let expected_ast = AbstractSyntaxTree::from_node(BinaryOperation {
+            operation: BinaryOperationKind::Divide,
+            left: Box::new(Identifier("a".to_string())),
+            right: Box::new(BinaryOperation {
                 operation: BinaryOperationKind::Multiply,
                 left: Box::new(BinaryOperation {
                     operation: BinaryOperationKind::Multiply,
                     left: Box::new(BinaryOperation {
                         operation: BinaryOperationKind::Multiply,
-                        left: Box::new(Identifier("a".to_string())),
-                        right: Box::new(BinaryOperation {
-                            operation: BinaryOperationKind::Divide,
-                            left: Box::new(Number(1.0)),
-                            right: Box::new(Identifier("b".to_string())),
-                        }),
+                        left: Box::new(Identifier("b".to_string())),
+                        right: Box::new(Identifier("c".to_string())),
                     }),
                     right: Box::new(BinaryOperation {
                         operation: BinaryOperationKind::Multiply,
-                        left: Box::new(BinaryOperation {
-                            operation: BinaryOperationKind::Divide,
-                            left: Box::new(Number(1.0)),
-                            right: Box::new(Identifier("c".to_string())),
-                        }),
-                        right: Box::new(BinaryOperation {
-                            operation: BinaryOperationKind::Divide,
-                            left: Box::new(Number(1.0)),
-                            right: Box::new(Identifier("d".to_string())),
-                        }),
+                        left: Box::new(Identifier("d".to_string())),
+                        right: Box::new(Identifier("e".to_string())),
                     }),
                 }),
                 right: Box::new(BinaryOperation {
                     operation: BinaryOperationKind::Multiply,
                     left: Box::new(BinaryOperation {
                         operation: BinaryOperationKind::Multiply,
-                        left: Box::new(BinaryOperation {
-                            operation: BinaryOperationKind::Divide,
-                            left: Box::new(Number(1.0)),
-                            right: Box::new(Identifier("e".to_string())),
-                        }),
-                        right: Box::new(BinaryOperation {
-                            operation: BinaryOperationKind::Divide,
-                            left: Box::new(Number(1.0)),
-                            right: Box::new(Identifier("f".to_string())),
-                        }),
+                        left: Box::new(Identifier("f".to_string())),
+                        right: Box::new(Identifier("g".to_string())),
                     }),
                     right: Box::new(BinaryOperation {
                         operation: BinaryOperationKind::Multiply,
-                        left: Box::new(BinaryOperation {
-                            operation: BinaryOperationKind::Divide,
-                            left: Box::new(Number(1.0)),
-                            right: Box::new(Identifier("g".to_string())),
-                        }),
-                        right: Box::new(BinaryOperation {
-                            operation: BinaryOperationKind::Divide,
-                            left: Box::new(Number(1.0)),
-                            right: Box::new(Identifier("h".to_string())),
-                        }),
+                        left: Box::new(Identifier("h".to_string())),
+                        right: Box::new(Identifier("i".to_string())),
                     }),
                 }),
-            }),
-            right: Box::new(BinaryOperation {
-                operation: BinaryOperationKind::Divide,
-                left: Box::new(Number(1.0)),
-                right: Box::new(Identifier("i".to_string())),
             }),
         });
 
@@ -575,23 +493,23 @@ mod tests {
 
         let actual_ast = balanced_ast.unwrap();
         let expected_ast = AbstractSyntaxTree::from_node(BinaryOperation {
-            operation: BinaryOperationKind::Plus,
+            operation: BinaryOperationKind::Minus,
             left: Box::new(BinaryOperation {
+                operation: BinaryOperationKind::Multiply,
+                left: Box::new(Identifier("a".to_string())),
+                right: Box::new(BinaryOperation {
+                    operation: BinaryOperationKind::Minus,
+                    left: Box::new(Identifier("b".to_string())),
+                    right: Box::new(Number(4.0)),
+                }),
+            }),
+            right: Box::new(BinaryOperation {
                 operation: BinaryOperationKind::Plus,
                 left: Box::new(BinaryOperation {
                     operation: BinaryOperationKind::Plus,
                     left: Box::new(BinaryOperation {
-                        operation: BinaryOperationKind::Multiply,
-                        left: Box::new(Identifier("a".to_string())),
-                        right: Box::new(BinaryOperation {
-                            operation: BinaryOperationKind::Plus,
-                            left: Box::new(Identifier("b".to_string())),
-                            right: Box::new(Number(-4.0)),
-                        }),
-                    }),
-                    right: Box::new(UnaryOperation {
-                        operation: UnaryOperationKind::Minus,
-                        expression: Box::new(BinaryOperation {
+                        operation: BinaryOperationKind::Plus,
+                        left: Box::new(BinaryOperation {
                             operation: BinaryOperationKind::Multiply,
                             left: Box::new(BinaryOperation {
                                 operation: BinaryOperationKind::Multiply,
@@ -600,22 +518,16 @@ mod tests {
                             }),
                             right: Box::new(Identifier("c".to_string())),
                         }),
-                    }),
-                }),
-                right: Box::new(BinaryOperation {
-                    operation: BinaryOperationKind::Plus,
-                    left: Box::new(UnaryOperation {
-                        operation: UnaryOperationKind::Minus,
-                        expression: Box::new(BinaryOperation {
+                        right: Box::new(BinaryOperation {
                             operation: BinaryOperationKind::Multiply,
                             left: Box::new(Identifier("c".to_string())),
                             right: Box::new(Identifier("d".to_string())),
                         }),
                     }),
-                    right: Box::new(UnaryOperation {
-                        operation: UnaryOperationKind::Minus,
-                        expression: Box::new(BinaryOperation {
-                            operation: BinaryOperationKind::Multiply,
+                    right: Box::new(BinaryOperation {
+                        operation: BinaryOperationKind::Plus,
+                        left: Box::new(BinaryOperation {
+                            operation: BinaryOperationKind::Divide,
                             left: Box::new(BinaryOperation {
                                 operation: BinaryOperationKind::Multiply,
                                 left: Box::new(BinaryOperation {
@@ -623,59 +535,33 @@ mod tests {
                                     left: Box::new(Identifier("a".to_string())),
                                     right: Box::new(Identifier("c".to_string())),
                                 }),
-                                right: Box::new(BinaryOperation {
-                                    operation: BinaryOperationKind::Multiply,
-                                    left: Box::new(Identifier("d".to_string())),
-                                    right: Box::new(BinaryOperation {
-                                        operation: BinaryOperationKind::Divide,
-                                        left: Box::new(Number(1.0)),
-                                        right: Box::new(Identifier("e".to_string())),
-                                    }),
-                                }),
+                                right: Box::new(Identifier("d".to_string())),
                             }),
                             right: Box::new(BinaryOperation {
                                 operation: BinaryOperationKind::Multiply,
                                 left: Box::new(BinaryOperation {
-                                    operation: BinaryOperationKind::Divide,
-                                    left: Box::new(Number(1.0)),
+                                    operation: BinaryOperationKind::Multiply,
+                                    left: Box::new(Identifier("e".to_string())),
                                     right: Box::new(Identifier("f".to_string())),
                                 }),
-                                right: Box::new(BinaryOperation {
-                                    operation: BinaryOperationKind::Divide,
-                                    left: Box::new(Number(1.0)),
-                                    right: Box::new(Identifier("g".to_string())),
-                                }),
+                                right: Box::new(Identifier("g".to_string())),
                             }),
                         }),
-                    }),
-                }),
-            }),
-            right: Box::new(BinaryOperation {
-                operation: BinaryOperationKind::Plus,
-                left: Box::new(BinaryOperation {
-                    operation: BinaryOperationKind::Plus,
-                    left: Box::new(UnaryOperation {
-                        operation: UnaryOperationKind::Minus,
-                        expression: Box::new(Identifier("g".to_string())),
-                    }),
-                    right: Box::new(UnaryOperation {
-                        operation: UnaryOperationKind::Minus,
-                        expression: Box::new(Identifier("h".to_string())),
+                        right: Box::new(Identifier("g".to_string())),
                     }),
                 }),
                 right: Box::new(BinaryOperation {
                     operation: BinaryOperationKind::Plus,
-                    left: Box::new(UnaryOperation {
-                        operation: UnaryOperationKind::Minus,
-                        expression: Box::new(Identifier("i".to_string())),
+                    left: Box::new(BinaryOperation {
+                        operation: BinaryOperationKind::Plus,
+                        left: Box::new(Identifier("h".to_string())),
+                        right: Box::new(Identifier("i".to_string())),
                     }),
-                    right: Box::new(UnaryOperation {
-                        operation: UnaryOperationKind::Minus,
-                        expression: Box::new(Identifier("j".to_string())),
-                    }),
+                    right: Box::new(Identifier("j".to_string())),
                 }),
             }),
         });
+
         assert_eq!(actual_ast, expected_ast);
     }
 
@@ -727,41 +613,32 @@ mod tests {
 
         let actual_ast = balanced_ast.unwrap();
         let expected_ast = AbstractSyntaxTree::from_node(BinaryOperation {
-            operation: BinaryOperationKind::Plus,
-            left: Box::new(BinaryOperation {
-                operation: BinaryOperationKind::Plus,
-                left: Box::new(BinaryOperation {
-                    operation: BinaryOperationKind::Plus,
-                    left: Box::new(Identifier("a".to_string())),
-                    right: Box::new(UnaryOperation {
-                        operation: UnaryOperationKind::Minus,
-                        expression: Box::new(Identifier("b".to_string())),
-                    }),
-                }),
-                right: Box::new(BinaryOperation {
-                    operation: BinaryOperationKind::Plus,
-                    left: Box::new(Identifier("c".to_string())),
-                    right: Box::new(Identifier("d".to_string())),
-                }),
-            }),
+            operation: BinaryOperationKind::Minus,
+            left: Box::new(Identifier("a".to_string())),
             right: Box::new(BinaryOperation {
                 operation: BinaryOperationKind::Plus,
                 left: Box::new(BinaryOperation {
-                    operation: BinaryOperationKind::Plus,
-                    left: Box::new(Identifier("e".to_string())),
-                    right: Box::new(UnaryOperation {
-                        operation: UnaryOperationKind::Minus,
-                        expression: Box::new(Identifier("f".to_string())),
+                    operation: BinaryOperationKind::Minus,
+                    left: Box::new(Identifier("b".to_string())),
+                    right: Box::new(BinaryOperation {
+                        operation: BinaryOperationKind::Plus,
+                        left: Box::new(BinaryOperation {
+                            operation: BinaryOperationKind::Plus,
+                            left: Box::new(Identifier("c".to_string())),
+                            right: Box::new(Identifier("d".to_string())),
+                        }),
+                        right: Box::new(BinaryOperation {
+                            operation: BinaryOperationKind::Plus,
+                            left: Box::new(BinaryOperation {
+                                operation: BinaryOperationKind::Minus,
+                                left: Box::new(Identifier("e".to_string())),
+                                right: Box::new(Identifier("f".to_string())),
+                            }),
+                            right: Box::new(Identifier("g".to_string())),
+                        }),
                     }),
                 }),
-                right: Box::new(BinaryOperation {
-                    operation: BinaryOperationKind::Plus,
-                    left: Box::new(Identifier("g".to_string())),
-                    right: Box::new(UnaryOperation {
-                        operation: UnaryOperationKind::Minus,
-                        expression: Box::new(Identifier("h".to_string())),
-                    }),
-                }),
+                right: Box::new(Identifier("h".to_string())),
             }),
         });
 
@@ -816,16 +693,12 @@ mod tests {
             left: Box::new(BinaryOperation {
                 operation: BinaryOperationKind::Plus,
                 left: Box::new(Identifier("i".to_string())),
-                right: Box::new(Number(2.0)),
+                right: Box::new(Number(-0.3999999999999999)),
             }),
             right: Box::new(BinaryOperation {
-                operation: BinaryOperationKind::Plus,
-                left: Box::new(Number(-2.4)),
-                right: Box::new(BinaryOperation {
-                    operation: BinaryOperationKind::Multiply,
-                    left: Box::new(Identifier("e".to_string())),
-                    right: Box::new(Number(0.5)),
-                }),
+                operation: BinaryOperationKind::Divide,
+                left: Box::new(Identifier("e".to_string())),
+                right: Box::new(Number(2.0)),
             }),
         });
 
