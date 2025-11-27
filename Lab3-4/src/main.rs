@@ -4,6 +4,8 @@
 use crate::config::Config;
 use crate::logs::Logger;
 
+pub const PROJECT_TITLE: &str = "Lab 3-4";
+
 fn main() {
     let config = Config::from_file().unwrap_or_else(|err| {
         eprintln!("Error. {err}");
@@ -11,7 +13,7 @@ fn main() {
     });
 
     Logger::default()
-        .with_file_title(&config.project_title)
+        .with_file_title(PROJECT_TITLE)
         .with_format(&config.log_format)
         .with_level(config.log_level)
         .setup()

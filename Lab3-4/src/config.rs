@@ -1,4 +1,4 @@
-use crate::{logs, ui};
+use crate::logs;
 use log::LevelFilter;
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -12,7 +12,6 @@ pub struct Config {
     pub log_format: String,
     pub log_level: LevelFilter,
     pub pretty_output: bool,
-    pub project_title: String,
 }
 
 impl Default for Config {
@@ -22,7 +21,6 @@ impl Default for Config {
             log_level: logs::DEFAULT_SETTINGS.log_level,
             // TODO: Default pretty output value
             pretty_output: false,
-            project_title: ui::DEFAULT_WINDOW_SETTINGS.project_title.to_string(),
         }
     }
 }
@@ -59,7 +57,6 @@ pub struct ConfigDto {
     pub log_format: String,
     pub log_level: String,
     pub pretty_output: bool,
-    pub project_title: String,
 }
 
 impl TryFrom<ConfigDto> for Config {
@@ -78,7 +75,6 @@ impl TryFrom<ConfigDto> for Config {
                 unknown => Err(Self::Error::UnknownLogLevel(unknown.to_string())),
             }?,
             pretty_output: value.pretty_output,
-            project_title: value.project_title,
         })
     }
 }
@@ -89,7 +85,6 @@ impl From<&Config> for ConfigDto {
             log_format: value.log_format.clone(),
             log_level: value.log_level.to_string(),
             pretty_output: value.pretty_output,
-            project_title: value.project_title.clone(),
         }
     }
 }

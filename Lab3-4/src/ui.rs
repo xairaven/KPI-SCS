@@ -16,7 +16,7 @@ pub struct WindowSettings {
 pub fn start(config: Config) -> eframe::Result {
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_title(config.project_title.clone())
+            .with_title(crate::PROJECT_TITLE)
             .with_inner_size([
                 DEFAULT_WINDOW_SETTINGS.min_width,
                 DEFAULT_WINDOW_SETTINGS.min_height,
@@ -39,7 +39,7 @@ pub fn start(config: Config) -> eframe::Result {
     };
 
     eframe::run_native(
-        &config.project_title.clone(),
+        crate::PROJECT_TITLE,
         native_options,
         Box::new(|cc| Ok(Box::new(App::new(cc, config)))),
     )
