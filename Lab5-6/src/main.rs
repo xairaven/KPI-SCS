@@ -4,7 +4,7 @@
 use crate::config::Config;
 use crate::logs::Logger;
 
-pub const PROJECT_TITLE: &str = "Lab 5";
+pub const PROJECT_TITLE: &str = "Lab 5-6";
 
 fn main() {
     let config = Config::from_file().unwrap_or_else(|err| {
