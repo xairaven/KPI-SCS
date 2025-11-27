@@ -1,6 +1,8 @@
 use crate::compiler::ast::tree::{AbstractSyntaxTree, AstError, AstParser};
 use crate::compiler::lexer::{Lexeme, Lexer, LexerError};
-use crate::compiler::pcs::vector::{SimulationResult, VectorSystemSimulator};
+use crate::compiler::pcs::vector::{
+    SimulationResult, SystemConfiguration, VectorSystemSimulator,
+};
 use crate::compiler::reports::Reporter;
 use crate::compiler::syntax::{SyntaxAnalyzer, SyntaxError};
 use crate::compiler::tokenizer::{Token, Tokenizer};
@@ -9,6 +11,8 @@ use crate::config::Config;
 pub struct CompilerContext {
     pub code: String,
     pub pretty_output: bool,
+
+    pub system_configuration: SystemConfiguration,
 }
 
 impl CompilerContext {
@@ -16,6 +20,8 @@ impl CompilerContext {
         Self {
             code: String::new(),
             pretty_output: config.pretty_output,
+
+            system_configuration: SystemConfiguration::default(),
         }
     }
 
@@ -228,7 +234,8 @@ impl CompilerContext {
             Ok(value) => value,
             Err(_) => return Err(Reporter.computing(&ast_computing_result, 4)),
         };
-        let simulation_result = VectorSystemSimulator::simulate(&ast);
+        let simulation_result =
+            VectorSystemSimulator::new(&ast, &self.system_configuration).simulate();
 
         Ok(simulation_result)
     }

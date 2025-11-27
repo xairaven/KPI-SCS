@@ -6,18 +6,54 @@ use crate::utils::StringBuffer;
 use std::collections::{HashMap, HashSet};
 
 // Configuration
-pub mod time {
-    pub const ADD: usize = 1;
-    pub const SUB: usize = 1;
-    pub const MUL: usize = 2;
-    pub const DIV: usize = 4;
+#[derive(Debug, Default, Clone)]
+pub struct SystemConfiguration {
+    pub time: TimeConfiguration,
+    pub processors: ProcessorConfiguration,
 }
 
-pub mod processors {
-    pub const ADD: usize = 1;
-    pub const SUB: usize = 1;
-    pub const MUL: usize = 1;
-    pub const DIV: usize = 1;
+#[derive(Debug, Clone)]
+pub struct TimeConfiguration {
+    pub add: usize,
+    pub sub: usize,
+    pub mul: usize,
+    pub div: usize,
+}
+
+impl Default for TimeConfiguration {
+    fn default() -> Self {
+        Self {
+            add: 1,
+            sub: 1,
+            mul: 2,
+            div: 4,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ProcessorConfiguration {
+    pub add: usize,
+    pub sub: usize,
+    pub mul: usize,
+    pub div: usize,
+}
+
+impl ProcessorConfiguration {
+    pub fn total(&self) -> usize {
+        self.add + self.sub + self.mul + self.div
+    }
+}
+
+impl Default for ProcessorConfiguration {
+    fn default() -> Self {
+        Self {
+            add: 1,
+            sub: 1,
+            mul: 1,
+            div: 1,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -30,12 +66,12 @@ pub enum OperationType {
 }
 
 impl OperationType {
-    fn execution_time(&self) -> usize {
+    fn execution_time(&self, time_config: &TimeConfiguration) -> usize {
         match self {
-            Self::Add => time::ADD,
-            Self::Sub => time::SUB,
-            Self::Mul => time::MUL,
-            Self::Div => time::DIV,
+            Self::Add => time_config.add,
+            Self::Sub => time_config.sub,
+            Self::Mul => time_config.mul,
+            Self::Div => time_config.div,
             Self::Load => 0,
         }
     }
@@ -96,17 +132,28 @@ pub struct SimulationResult {
     pub tp: usize,
     pub speedup: f64,
     pub efficiency: f64,
+
+    pub configuration: SystemConfiguration,
 }
 
-pub struct VectorSystemSimulator;
+pub struct VectorSystemSimulator<'a> {
+    ast: &'a AbstractSyntaxTree,
+    configuration: &'a SystemConfiguration,
+}
 
-impl VectorSystemSimulator {
-    pub fn simulate(ast: &AbstractSyntaxTree) -> SimulationResult {
+impl<'a> VectorSystemSimulator<'a> {
+    pub fn new(
+        ast: &'a AbstractSyntaxTree, configuration: &'a SystemConfiguration,
+    ) -> Self {
+        Self { ast, configuration }
+    }
+
+    pub fn simulate(&self) -> SimulationResult {
         // Convert AST to Task Graph
-        let (tasks, _) = Self::flatten_ast(ast);
+        let (tasks, _) = Self::flatten_ast(self.ast);
 
         // Simulate execution
-        let (schedule, tick_logs) = Self::run_list_scheduling(tasks.clone());
+        let (schedule, tick_logs) = self.run_list_scheduling(tasks.clone());
 
         // Calculate metrics
         // Tp = End time of the last task
@@ -115,8 +162,7 @@ impl VectorSystemSimulator {
         // T1 = Sum of execution times of all computational tasks (excluding Loads)
         let t1: usize = schedule.iter().map(|t| t.end_time - t.start_time).sum();
 
-        let total_processors =
-            processors::ADD + processors::SUB + processors::MUL + processors::DIV;
+        let total_processors = self.configuration.processors.total();
 
         // Avoid division by zero
         let speedup = if tp > 0 { t1 as f64 / tp as f64 } else { 0.0 };
@@ -133,6 +179,8 @@ impl VectorSystemSimulator {
             tp,
             speedup,
             efficiency,
+
+            configuration: self.configuration.clone(),
         }
     }
 
@@ -253,7 +301,7 @@ impl VectorSystemSimulator {
 
     /// List Scheduling Algorithm
     fn run_list_scheduling(
-        tasks: HashMap<usize, Task>,
+        &self, tasks: HashMap<usize, Task>,
     ) -> (Vec<ScheduledTask>, Vec<TickLog>) {
         let mut final_schedule = Vec::new();
         let mut tick_logs = Vec::new();
@@ -261,10 +309,22 @@ impl VectorSystemSimulator {
         // Initialize Processor states: Map<OpType, Vec<BusyUntilTick>>
         // The Vec represents the pool of processors of that type.
         let mut processors: HashMap<OperationType, Vec<usize>> = HashMap::new();
-        processors.insert(OperationType::Add, vec![0; processors::ADD]);
-        processors.insert(OperationType::Sub, vec![0; processors::SUB]);
-        processors.insert(OperationType::Mul, vec![0; processors::MUL]);
-        processors.insert(OperationType::Div, vec![0; processors::DIV]);
+        processors.insert(
+            OperationType::Add,
+            vec![0; self.configuration.processors.add],
+        );
+        processors.insert(
+            OperationType::Sub,
+            vec![0; self.configuration.processors.sub],
+        );
+        processors.insert(
+            OperationType::Mul,
+            vec![0; self.configuration.processors.mul],
+        );
+        processors.insert(
+            OperationType::Div,
+            vec![0; self.configuration.processors.div],
+        );
 
         // "Load" operations don't need processors, they are instant.
 
@@ -317,8 +377,8 @@ impl VectorSystemSimulator {
 
             // Heuristic: Sort by operation type cost (Longest Processing Time first) or just ID
             ready_queue.sort_by(|a, b| {
-                let time_a = a.operation_type.execution_time();
-                let time_b = b.operation_type.execution_time();
+                let time_a = a.operation_type.execution_time(&self.configuration.time);
+                let time_b = b.operation_type.execution_time(&self.configuration.time);
                 if time_a != time_b {
                     time_b.cmp(&time_a) // Higher cost first
                 } else {
@@ -342,7 +402,8 @@ impl VectorSystemSimulator {
                         .position(|&busy_until| busy_until <= current_tick)
                     {
                         // Schedule!
-                        let duration = task.operation_type.execution_time();
+                        let duration =
+                            task.operation_type.execution_time(&self.configuration.time);
                         let start = current_tick;
                         let end = start + duration;
 
@@ -413,17 +474,17 @@ impl Reporter {
         buffer.add_line("-".repeat(60));
         buffer.add_line(format!(
             "Configuration: Add({}), Sub({}), Mul({}), Div({})",
-            processors::ADD,
-            processors::SUB,
-            processors::MUL,
-            processors::DIV
+            result.configuration.processors.add,
+            result.configuration.processors.sub,
+            result.configuration.processors.mul,
+            result.configuration.processors.div,
         ));
         buffer.add_line(format!(
             "Costs (Ticks): Add={}, Sub={}, Mul={}, Div={}",
-            time::ADD,
-            time::SUB,
-            time::MUL,
-            time::DIV
+            result.configuration.time.add,
+            result.configuration.time.sub,
+            result.configuration.time.mul,
+            result.configuration.time.div,
         ));
         buffer.add_line("-".repeat(60));
 

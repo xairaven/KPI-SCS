@@ -1,4 +1,5 @@
 use crate::context::Context;
+use egui::{DragValue, Grid};
 
 #[derive(Default)]
 pub struct FunctionsComponent;
@@ -63,14 +64,72 @@ impl FunctionsComponent {
                     .ui
                     .set_output(context.compiler.equivalent_forms_report());
             }
+        });
 
-            ui.separator();
+        ui.separator();
+
+        ui.vertical_centered_justified(|ui| {
+            ui.add_space(10.0);
+
+            ui.label("Vector System");
+
+            ui.add_space(5.0);
+
+            let processor_config = &mut context.compiler.system_configuration.processors;
+            let time_config = &mut context.compiler.system_configuration.time;
+            ui.group(|ui| {
+                Grid::new("psc_config_grid")
+                    .num_columns(3)
+                    .spacing([40.0, 4.0])
+                    .show(ui, |ui| {
+                        ui.label("");
+                        ui.label("PUs");
+                        ui.label("Ticks");
+                        ui.end_row();
+
+                        ui.label("ADD: ");
+                        Self::processor_drag(ui, &mut processor_config.add);
+                        Self::time_drag(ui, &mut time_config.add);
+                        ui.end_row();
+
+                        ui.label("SUB: ");
+                        Self::processor_drag(ui, &mut processor_config.sub);
+                        Self::time_drag(ui, &mut time_config.sub);
+                        ui.end_row();
+
+                        ui.label("MUL: ");
+                        Self::processor_drag(ui, &mut processor_config.mul);
+                        Self::time_drag(ui, &mut time_config.mul);
+                        ui.end_row();
+
+                        ui.label("DIV: ");
+                        Self::processor_drag(ui, &mut processor_config.div);
+                        Self::time_drag(ui, &mut time_config.div);
+                        ui.end_row();
+                    });
+            });
+
+            ui.add_space(10.0);
 
             if ui.button("Simulate PCS").clicked() {
                 context
                     .ui
                     .set_output(context.compiler.pcs_simulation_report());
             }
+
+            ui.add_space(5.0);
+
+            if ui.button("PCS Config Reset").clicked() {
+                context.compiler.system_configuration = Default::default();
+            }
         });
+    }
+
+    fn processor_drag(ui: &mut egui::Ui, value: &mut usize) {
+        ui.add(DragValue::new(value).speed(1).range(0..=100));
+    }
+
+    fn time_drag(ui: &mut egui::Ui, value: &mut usize) {
+        ui.add(DragValue::new(value).speed(1).range(0..=100).suffix(" t."));
     }
 }
