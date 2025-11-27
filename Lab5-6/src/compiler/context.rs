@@ -1,8 +1,8 @@
 use crate::compiler::ast::tree::{AbstractSyntaxTree, AstError, AstParser};
 use crate::compiler::lexer::{Lexeme, Lexer, LexerError};
-use crate::compiler::pcs::vector::{
-    SimulationResult, SystemConfiguration, VectorSystemSimulator,
-};
+use crate::compiler::pcs::SystemConfiguration;
+use crate::compiler::pcs::research::{OptimizationReport, Researcher};
+use crate::compiler::pcs::vector::{SimulationResult, VectorSystemSimulator};
 use crate::compiler::reports::Reporter;
 use crate::compiler::syntax::{SyntaxAnalyzer, SyntaxError};
 use crate::compiler::tokenizer::{Token, Tokenizer};
@@ -248,5 +248,37 @@ impl CompilerContext {
         };
 
         format!("{}\n\n{}", computation_report, simulation_report)
+    }
+
+    fn run_optimization_research(&self) -> Result<Vec<OptimizationReport>, String> {
+        let equivalent_forms = self.find_equivalent_forms()?;
+
+        let mut trees = Vec::new();
+        for form in &equivalent_forms {
+            let context = CompilerContext {
+                code: form.clone(),
+                pretty_output: self.pretty_output,
+                system_configuration: self.system_configuration.clone(),
+            };
+            let ast_computing_result = context.compute_ast_4()?;
+            let ast = match ast_computing_result {
+                Ok(value) => value,
+                Err(_) => return Err(Reporter.computing(&ast_computing_result, 4)),
+            };
+            trees.push(ast);
+        }
+
+        Researcher::new(&trees, &self.system_configuration).run()
+    }
+
+    pub fn optimization_research_report(&self) -> String {
+        let optimization_reports = self.run_optimization_research();
+
+        let optimization_reports = match optimization_reports {
+            Ok(reports) => reports,
+            Err(error) => return error,
+        };
+
+        Reporter::generate_optimization_report(&optimization_reports)
     }
 }

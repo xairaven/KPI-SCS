@@ -117,10 +117,16 @@ impl FunctionsComponent {
                     .set_output(context.compiler.pcs_simulation_report());
             }
 
-            ui.add_space(5.0);
-
             if ui.button("PCS Config Reset").clicked() {
                 context.compiler.system_configuration = Default::default();
+            }
+
+            ui.add_space(10.0);
+
+            if ui.button("Optimization Research").clicked() {
+                context
+                    .ui
+                    .set_output(context.compiler.optimization_research_report());
             }
         });
     }

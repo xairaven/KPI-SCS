@@ -1,5 +1,6 @@
 pub mod context;
 pub mod lexer;
+pub mod pcs;
 pub mod syntax;
 pub mod tokenizer;
 
@@ -16,10 +17,6 @@ pub mod ast {
 pub mod laws {
     pub mod associative;
     pub mod distributive;
-}
-
-pub mod pcs {
-    pub mod vector;
 }
 
 pub mod reports;
