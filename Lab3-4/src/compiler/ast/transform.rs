@@ -1,7 +1,8 @@
 use crate::compiler::ast::tree::{
     AbstractSyntaxTree, AstError, AstNode, BinaryOperationKind, UnaryOperationKind,
 };
-use colored::Colorize;
+use crate::compiler::reports::Reporter;
+use crate::utils::StringBuffer;
 
 impl AbstractSyntaxTree {
     pub fn transform(self) -> Result<AbstractSyntaxTree, AstError> {
@@ -237,10 +238,12 @@ impl AbstractSyntaxTree {
         terms: Vec<AstNode>, op: BinaryOperationKind,
     ) -> AstNode {
         let mut iter = terms.into_iter();
-        // Гарантовано є хоча б один елемент, бо ми перевіряємо !is_empty() вище
+
         let mut current = match iter.next() {
-            None => unreachable!(),
-            Some(value) => value,
+            Some(term) => term,
+            None => unreachable!(
+                "Guaranteed to have at least one element, as we check !is_empty() above"
+            ),
         };
 
         for term in iter {
@@ -255,21 +258,23 @@ impl AbstractSyntaxTree {
     }
 }
 
-pub fn report_success(tree: &AbstractSyntaxTree) {
-    log::warn!(
-        "{} {}.",
-        "Генерація трансформованого абстрактного синтаксичного дерева:",
-        "успішна".bold().green()
-    );
-    log::info!("{}", tree.pretty_print());
-}
+impl Reporter {
+    pub fn transforming(&self, result: &Result<AbstractSyntaxTree, AstError>) -> String {
+        let mut buffer = StringBuffer::default();
 
-pub fn report_error(error: AstError) {
-    log::error!(
-        "{} {}",
-        "Трансформування абстрактного синтаксичного дерева:"
-            .bold()
-            .red(),
-        error
-    );
+        match result {
+            Ok(tree) => {
+                buffer.add_line(
+                    "Transformed Abstract-Syntax Tree generation success!\n".to_string(),
+                );
+                buffer.add_line(tree.pretty_print());
+            },
+            Err(error) => buffer.add_line(format!(
+                "Transformed Abstract-Syntax Tree generation error: {}",
+                error
+            )),
+        }
+
+        buffer.get()
+    }
 }
