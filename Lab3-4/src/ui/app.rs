@@ -1,16 +1,15 @@
 use crate::config::Config;
 use crate::context::Context;
 use crate::ui::components::main::MainComponent;
-use crate::ui::components::side::SideComponent;
 use crate::ui::modals::Modal;
 use crate::ui::modals::error::ErrorModal;
-use egui::{CentralPanel, SidePanel};
+use crate::ui::styles;
+use egui::{CentralPanel, Visuals};
 
 pub struct App {
     context: Context,
 
     main_component: MainComponent,
-    side_panel: SideComponent,
 
     errors: Vec<ErrorModal>,
 }
@@ -23,7 +22,6 @@ impl App {
             context,
 
             main_component: Default::default(),
-            side_panel: Default::default(),
 
             errors: vec![],
         }
@@ -32,16 +30,14 @@ impl App {
 
 impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        CentralPanel::default().show(ctx, |ui| {
-            SidePanel::right("SETTINGS_PANEL")
-                .resizable(false)
-                .min_width(ui.available_width() / 4.0)
-                .max_width(ui.available_width() / 4.0)
-                .show_separator_line(true)
-                .show_inside(ui, |ui| {
-                    self.side_panel.show(&mut self.context, ui);
-                });
+        let mut visuals = Visuals::light();
+        visuals.panel_fill = styles::colors::BEIGE;
+        visuals.override_text_color = Some(styles::colors::BLACK);
+        visuals.widgets.inactive.bg_stroke =
+            egui::Stroke::new(1.0, styles::colors::BLACK);
+        ctx.set_visuals(visuals);
 
+        CentralPanel::default().show(ctx, |ui| {
             CentralPanel::default().show_inside(ui, |ui| {
                 self.main_component.show(&mut self.context, ui);
             });

@@ -55,8 +55,4 @@ pub mod styles;
 
 pub mod components {
     pub mod main;
-    pub mod side;
-
-    pub mod functions;
-    pub mod settings;
 }
