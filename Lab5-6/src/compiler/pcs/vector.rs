@@ -12,11 +12,12 @@ pub enum OperationType {
     Sub,
     Mul,
     Div,
-    Load, // For variables and numbers (immediate execution)
+    Load, // Represents immediate operations or variable loads (0 latency)
 }
 
 impl OperationType {
-    fn execution_time(&self, time_config: &TimeConfiguration) -> usize {
+    /// Returns the latency (execution time in ticks) for this operation type.
+    fn latency(&self, time_config: &TimeConfiguration) -> usize {
         match self {
             Self::Add => time_config.add,
             Self::Sub => time_config.sub,
@@ -32,7 +33,7 @@ impl OperationType {
             BinaryOperationKind::Minus => Self::Sub,
             BinaryOperationKind::Multiply => Self::Mul,
             BinaryOperationKind::Divide => Self::Div,
-            _ => OperationType::Load, // Logical ops are treated as immediate/loads for this lab
+            _ => OperationType::Load,
         }
     }
 }
@@ -40,10 +41,10 @@ impl OperationType {
 impl std::fmt::Display for OperationType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let str = match self {
-            Self::Add => "ADD_BLOCK",
-            Self::Sub => "SUB_BLOCK",
-            Self::Mul => "MUL_BLOCK",
-            Self::Div => "DIV_BLOCK",
+            Self::Add => "ADD",
+            Self::Sub => "SUB",
+            Self::Mul => "MUL",
+            Self::Div => "DIV",
             Self::Load => "LOAD",
         };
         write!(f, "{}", str)
@@ -55,7 +56,10 @@ struct Task {
     id: usize,
     operation_type: OperationType,
     dependencies: Vec<usize>,
+    // String representation of the specific operation (e.g., "a + b")
     display_name: String,
+    // Rank or depth in the AST, used for priority heuristic
+    rank: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -64,14 +68,16 @@ pub struct ScheduledTask {
     pub name: String,
     pub start_time: usize,
     pub end_time: usize,
-    pub processor: OperationType,
+    pub processor_type: OperationType,
+    // The specific index of the processor unit (e.g., ADD #0, ADD #1)
+    pub processor_index: usize,
 }
 
 #[derive(Debug, Clone)]
 pub struct TickLog {
     pub tick: usize,
-    // Map: Processor Name -> Task Name (or "Idle")
-    pub processor_states: HashMap<String, String>,
+    // Maps "ProcessorName" (e.g., "ADD #1") -> Status String (e.g., "[Stage 2: x+y]")
+    pub pipelines_state: HashMap<String, String>,
     pub ready_queue: Vec<String>,
 }
 
@@ -99,22 +105,26 @@ impl<'a> VectorSystemSimulator<'a> {
     }
 
     pub fn simulate(&self) -> SimulationResult {
-        // Convert AST to Task Graph
-        let (tasks, _) = Self::flatten_ast(self.ast);
+        // 1. Convert AST to a flat Task Graph
+        let tasks = Self::flatten_ast(self.ast);
 
-        // Simulate execution
-        let (schedule, tick_logs) = self.run_list_scheduling(tasks.clone());
+        // 2. Run Pipelined List Scheduling
+        let (schedule, tick_logs) = self.run_pipelined_scheduling(tasks);
 
-        // Calculate metrics
-        // Tp = End time of the last task
+        // 3. Calculate metrics
+        // Tp = Finish time of the last task
         let tp = schedule.iter().map(|t| t.end_time).max().unwrap_or(0);
 
         // T1 = Sum of execution times of all computational tasks (excluding Loads)
-        let t1: usize = schedule.iter().map(|t| t.end_time - t.start_time).sum();
+        // We use pure latency for T1 calculation
+        let t1: usize = schedule
+            .iter()
+            .filter(|t| t.processor_type != OperationType::Load)
+            .map(|t| t.end_time - t.start_time)
+            .sum();
 
         let total_processors = self.configuration.processors.total();
 
-        // Avoid division by zero
         let speedup = if tp > 0 { t1 as f64 / tp as f64 } else { 0.0 };
         let efficiency = if total_processors > 0 {
             speedup / total_processors as f64
@@ -129,22 +139,22 @@ impl<'a> VectorSystemSimulator<'a> {
             tp,
             speedup,
             efficiency,
-
             configuration: self.configuration.clone(),
         }
     }
 
-    /// Converts the recursive AST into a flat HashMap of Tasks with dependencies.
-    fn flatten_ast(ast: &AbstractSyntaxTree) -> (HashMap<usize, Task>, usize) {
+    /// Recursively traverses the AST to build tasks.
+    fn flatten_ast(ast: &AbstractSyntaxTree) -> HashMap<usize, Task> {
         let mut tasks = HashMap::new();
         let mut id_counter = 0;
-        let root_id = Self::traverse_node(&ast.peek, &mut tasks, &mut id_counter);
-        (tasks, root_id)
+        Self::traverse_node(&ast.peek, &mut tasks, &mut id_counter);
+        tasks
     }
 
+    /// Helper: returns (node_id, rank, text_representation)
     fn traverse_node(
         node: &AstNode, tasks: &mut HashMap<usize, Task>, counter: &mut usize,
-    ) -> usize {
+    ) -> (usize, usize, String) {
         let current_id = *counter;
         *counter += 1;
 
@@ -154,8 +164,23 @@ impl<'a> VectorSystemSimulator<'a> {
                 left,
                 right,
             } => {
-                let left_id = Self::traverse_node(left, tasks, counter);
-                let right_id = Self::traverse_node(right, tasks, counter);
+                let (left_id, left_rank, left_text) =
+                    Self::traverse_node(left, tasks, counter);
+                let (right_id, right_rank, right_text) =
+                    Self::traverse_node(right, tasks, counter);
+
+                // Rank is max depth of children + 1
+                let rank = std::cmp::max(left_rank, right_rank) + 1;
+
+                let op_symbol = match operation {
+                    BinaryOperationKind::Plus => "+",
+                    BinaryOperationKind::Minus => "-",
+                    BinaryOperationKind::Multiply => "*",
+                    BinaryOperationKind::Divide => "/",
+                    _ => "?",
+                };
+                let display_name =
+                    format!("({} {} {})", left_text, op_symbol, right_text);
 
                 tasks.insert(
                     current_id,
@@ -163,42 +188,55 @@ impl<'a> VectorSystemSimulator<'a> {
                         id: current_id,
                         operation_type: OperationType::from_binary(operation),
                         dependencies: vec![left_id, right_id],
-                        display_name: operation.to_string(),
+                        display_name: display_name.clone(),
+                        rank,
                     },
                 );
+                (current_id, rank, display_name)
             },
             AstNode::UnaryOperation {
                 operation,
                 expression,
             } => {
-                let child_id = Self::traverse_node(expression, tasks, counter);
+                let (child_id, child_rank, child_text) =
+                    Self::traverse_node(expression, tasks, counter);
 
-                // Map Unary Minus to Subtraction block (0 - expr)
-                let operation_type = match operation {
+                let rank = child_rank + 1;
+                let op_type = match operation {
                     UnaryOperationKind::Minus => OperationType::Sub,
-                    _ => OperationType::Load, // Negation '!' treated as instant
+                    _ => OperationType::Load,
                 };
+                let op_symbol = match operation {
+                    UnaryOperationKind::Minus => "-",
+                    UnaryOperationKind::Not => "!",
+                };
+                let display_name = format!("{}{}", op_symbol, child_text);
 
                 tasks.insert(
                     current_id,
                     Task {
                         id: current_id,
-                        operation_type,
+                        operation_type: op_type,
                         dependencies: vec![child_id],
-                        display_name: format!("Unary{}", operation),
+                        display_name: display_name.clone(),
+                        rank,
                     },
                 );
+                (current_id, rank, display_name)
             },
             AstNode::Number(n) => {
+                let text = format!("{:.1}", n);
                 tasks.insert(
                     current_id,
                     Task {
                         id: current_id,
                         operation_type: OperationType::Load,
                         dependencies: vec![],
-                        display_name: format!("{:.1}", n),
+                        display_name: text.clone(),
+                        rank: 0,
                     },
                 );
+                (current_id, 0, text)
             },
             AstNode::Identifier(s) => {
                 tasks.insert(
@@ -208,31 +246,38 @@ impl<'a> VectorSystemSimulator<'a> {
                         operation_type: OperationType::Load,
                         dependencies: vec![],
                         display_name: s.clone(),
+                        rank: 0,
                     },
                 );
+                (current_id, 0, s.clone())
             },
-            // Function calls and Array access treated as Load (black box)
             AstNode::FunctionCall { name, .. } => {
-                tasks.insert(
-                    current_id,
-                    Task {
-                        id: current_id,
-                        operation_type: OperationType::Load,
-                        dependencies: vec![], // Simplifying: arguments handled inside but treated as one unit here
-                        display_name: format!("{}()", name),
-                    },
-                );
-            },
-            AstNode::ArrayAccess { identifier, .. } => {
+                let text = format!("{}()", name);
                 tasks.insert(
                     current_id,
                     Task {
                         id: current_id,
                         operation_type: OperationType::Load,
                         dependencies: vec![],
-                        display_name: format!("{}[..]", identifier),
+                        display_name: text.clone(),
+                        rank: 0,
                     },
                 );
+                (current_id, 0, text)
+            },
+            AstNode::ArrayAccess { identifier, .. } => {
+                let text = format!("{}[..]", identifier);
+                tasks.insert(
+                    current_id,
+                    Task {
+                        id: current_id,
+                        operation_type: OperationType::Load,
+                        dependencies: vec![],
+                        display_name: text.clone(),
+                        rank: 0,
+                    },
+                );
+                (current_id, 0, text)
             },
             _ => {
                 tasks.insert(
@@ -242,171 +287,202 @@ impl<'a> VectorSystemSimulator<'a> {
                         operation_type: OperationType::Load,
                         dependencies: vec![],
                         display_name: "?".to_string(),
+                        rank: 0,
                     },
                 );
+                (current_id, 0, "?".to_string())
             },
         }
-        current_id
     }
 
-    /// List Scheduling Algorithm
-    fn run_list_scheduling(
+    /// Runs the simulation assuming pipelined processors.
+    /// A processor unit can accept a new input 1 tick after the previous start.
+    fn run_pipelined_scheduling(
         &self, tasks: HashMap<usize, Task>,
     ) -> (Vec<ScheduledTask>, Vec<TickLog>) {
         let mut final_schedule = Vec::new();
         let mut tick_logs = Vec::new();
 
-        // Initialize Processor states: Map<OpType, Vec<BusyUntilTick>>
-        // The Vec represents the pool of processors of that type.
-        let mut processors: HashMap<OperationType, Vec<usize>> = HashMap::new();
-        processors.insert(
-            OperationType::Add,
-            vec![0; self.configuration.processors.add],
-        );
-        processors.insert(
-            OperationType::Sub,
-            vec![0; self.configuration.processors.sub],
-        );
-        processors.insert(
-            OperationType::Mul,
-            vec![0; self.configuration.processors.mul],
-        );
-        processors.insert(
-            OperationType::Div,
-            vec![0; self.configuration.processors.div],
-        );
+        // Count of processor units for each type
+        let mut resources_count: HashMap<OperationType, usize> = HashMap::new();
+        resources_count.insert(OperationType::Add, self.configuration.processors.add);
+        resources_count.insert(OperationType::Sub, self.configuration.processors.sub);
+        resources_count.insert(OperationType::Mul, self.configuration.processors.mul);
+        resources_count.insert(OperationType::Div, self.configuration.processors.div);
 
-        // "Load" operations don't need processors, they are instant.
+        // Track when each unit is ready for NEW input.
+        // Map: OperationType -> Vector of "Ready at Tick" for each unit index.
+        let mut unit_next_input_at: HashMap<OperationType, Vec<usize>> = HashMap::new();
+        for (op, &count) in &resources_count {
+            unit_next_input_at.insert(*op, vec![0; count]);
+        }
 
-        // Task states
         let mut task_finish_time: HashMap<usize, usize> = HashMap::new();
-        let mut completed_tasks: HashSet<usize> = HashSet::new();
+        let mut scheduled_tasks_ids: HashSet<usize> = HashSet::new();
 
-        // Pre-process "Load" tasks (variables/constants) as completed at T=0
+        // Process Load operations (latency 0) immediately
         for task in tasks.values() {
             if task.operation_type == OperationType::Load {
                 task_finish_time.insert(task.id, 0);
-                completed_tasks.insert(task.id);
+                scheduled_tasks_ids.insert(task.id);
             }
         }
 
         let mut current_tick = 0;
-        let mut active_tasks: HashMap<usize, (usize, OperationType)> = HashMap::new(); // TaskId -> (EndTime, ProcType)
 
-        // Main Loop
+        // Track currently running tasks for logging purposes: (TaskID, StartTime, EndTime, UnitIndex, OpType)
+        let mut active_computations: Vec<(usize, usize, usize, usize, OperationType)> =
+            Vec::new();
+
         loop {
-            // A. Check for completed tasks in this tick
-            let mut just_finished = Vec::new();
-            // We need to collect keys to remove to avoid borrowing issues
-            let finished_ids: Vec<usize> = active_tasks
-                .iter()
-                .filter(|(_, (end_time, _))| *end_time <= current_tick)
-                .map(|(id, _)| *id)
-                .collect();
+            // Clean up finished tasks from active list (just for housekeeping)
+            active_computations.retain(|&(_, _, end, _, _)| end > current_tick);
 
-            for id in finished_ids {
-                active_tasks.remove(&id);
-                completed_tasks.insert(id);
-                just_finished.push(id);
-            }
-
-            // If all tasks are done, break
-            if completed_tasks.len() == tasks.len() {
+            // Break if all tasks are scheduled and no computations are running
+            if scheduled_tasks_ids.len() == tasks.len() && active_computations.is_empty()
+            {
                 break;
             }
 
-            // B. Find Ready Tasks
-            let mut ready_queue: Vec<&Task> = tasks.values()
-                .filter(|t| !completed_tasks.contains(&t.id)) // Not completed
-                .filter(|t| !active_tasks.contains_key(&t.id)) // Not currently running
+            // --- 1. Find Ready Tasks ---
+            // A task is ready if all dependencies finished at or before current_tick.
+            let mut ready_queue: Vec<&Task> = tasks
+                .values()
+                .filter(|t| !scheduled_tasks_ids.contains(&t.id))
                 .filter(|t| {
-                    // All dependencies must be completed
-                    t.dependencies.iter().all(|dep| completed_tasks.contains(dep))
+                    t.dependencies.iter().all(|dep_id| {
+                        task_finish_time
+                            .get(dep_id)
+                            .map(|&t| t <= current_tick)
+                            .unwrap_or(false)
+                    })
                 })
                 .collect();
 
-            // Heuristic: Sort by operation type cost (Longest Processing Time first) or just ID
+            // Heuristic: Prefer tasks with lower Rank (closer to leaves usually means data ready)
+            // or Higher Cost. Here we sort by Rank ASC, then Latency DESC.
             ready_queue.sort_by(|a, b| {
-                let time_a = a.operation_type.execution_time(&self.configuration.time);
-                let time_b = b.operation_type.execution_time(&self.configuration.time);
-                if time_a != time_b {
-                    time_b.cmp(&time_a) // Higher cost first
+                if a.rank != b.rank {
+                    a.rank.cmp(&b.rank)
                 } else {
-                    a.id.cmp(&b.id)
+                    let cost_a = a.operation_type.latency(&self.configuration.time);
+                    let cost_b = b.operation_type.latency(&self.configuration.time);
+                    cost_b.cmp(&cost_a)
                 }
             });
 
-            // Log snapshot preparation
+            // --- 2. Log State Snapshot (Start of Tick) ---
             let mut current_tick_log = TickLog {
                 tick: current_tick,
-                processor_states: HashMap::new(),
+                pipelines_state: HashMap::new(),
                 ready_queue: ready_queue.iter().map(|t| t.display_name.clone()).collect(),
             };
 
-            // C. Assign Ready Tasks to Free Processors
+            // --- 3. Schedule Ready Tasks ---
             for task in ready_queue {
-                if let Some(proc_pool) = processors.get_mut(&task.operation_type) {
-                    // Find a processor that is free at current_tick
-                    if let Some(proc_idx) = proc_pool
-                        .iter()
-                        .position(|&busy_until| busy_until <= current_tick)
+                if task.operation_type == OperationType::Load {
+                    continue;
+                }
+
+                if let Some(units) = unit_next_input_at.get_mut(&task.operation_type) {
+                    // Try to find a unit that can accept input NOW (<= current_tick)
+                    if let Some(unit_idx) =
+                        units.iter().position(|&ready_at| ready_at <= current_tick)
                     {
-                        // Schedule!
-                        let duration =
-                            task.operation_type.execution_time(&self.configuration.time);
+                        let latency =
+                            task.operation_type.latency(&self.configuration.time);
                         let start = current_tick;
-                        let end = start + duration;
+                        let end = start + latency;
 
-                        // Mark processor busy
-                        proc_pool[proc_idx] = end;
+                        // Pipelining: Unit is ready for NEXT task after 1 tick
+                        units[unit_idx] = start + 1;
 
-                        // Add to schedule
                         final_schedule.push(ScheduledTask {
                             task_id: task.id,
                             name: task.display_name.clone(),
                             start_time: start,
                             end_time: end,
-                            processor: task.operation_type,
+                            processor_type: task.operation_type,
+                            processor_index: unit_idx,
                         });
 
-                        // Add to active tasks
-                        active_tasks.insert(task.id, (end, task.operation_type));
-
-                        // We also record finish time for dependency checking later
+                        scheduled_tasks_ids.insert(task.id);
                         task_finish_time.insert(task.id, end);
+
+                        active_computations.push((
+                            task.id,
+                            start,
+                            end,
+                            unit_idx,
+                            task.operation_type,
+                        ));
                     }
                 }
             }
 
-            // D. Populate Tick Log with Processor Status
-            // Helper to find what task is running on a specific processor type
-            // Note: This simple model assumes 1 processor of each type.
-            // If COUNT > 1, we would need to track which specific processor index is used.
-            for operation_type in processors.keys() {
-                if operation_type.eq(&OperationType::Load) {
+            // --- 4. Populate Pipeline Status for Log ---
+            // We iterate over every processor unit to report its status.
+            for (op_type, units) in &unit_next_input_at {
+                if *op_type == OperationType::Load {
                     continue;
                 }
 
-                let op_name = operation_type.to_string();
-                let mut status = "Idle".to_string();
+                for (idx, _) in units.iter().enumerate() {
+                    // Find all tasks currently executing in this specific unit instance
+                    // A task is in the pipeline if: start_time <= current_tick < end_time
+                    let tasks_in_pipeline: Vec<_> = active_computations
+                        .iter()
+                        .filter(|&&(_, start, end, u_idx, op)| {
+                            op == *op_type
+                                && u_idx == idx
+                                && start <= current_tick
+                                && current_tick < end
+                        })
+                        .collect();
 
-                // Find if any active task matches this op_type
-                // Since we have 1 proc per type, we just check if there is ANY active task of this type
-                if let Some((id, _)) =
-                    active_tasks.iter().find(|(_, (_, t))| t == operation_type)
-                    && let Some(task) = tasks.get(id)
-                {
-                    status = format!("Processing '{}'", task.display_name);
+                    let proc_name = format!("{} #{}", op_type, idx + 1);
+
+                    if tasks_in_pipeline.is_empty() {
+                        current_tick_log
+                            .pipelines_state
+                            .insert(proc_name, "Idle".to_string());
+                    } else {
+                        // Build string like "[Stage 3: a+b] [Stage 1: c*d]"
+                        // Current Stage = current_tick - start_time + 1
+                        // Sort by start time to show flow order (earlier start = later stage)
+                        let mut status_parts = Vec::new();
+                        // Sort tasks so highest stage is first (visually intuitive)
+                        let mut sorted_tasks = tasks_in_pipeline.clone();
+                        sorted_tasks.sort_by_key(|&&(_, start, _, _, _)| start);
+
+                        for &(t_id, start, _, _, _) in sorted_tasks {
+                            let current_stage = current_tick - start + 1;
+                            let task_name = &tasks[&t_id].display_name;
+
+                            // Shorten name if too long
+                            let short_name = if task_name.len() > 15 {
+                                format!("{}...", &task_name[0..12])
+                            } else {
+                                task_name.clone()
+                            };
+
+                            status_parts.push(format!(
+                                "[Stage {}: {}]",
+                                current_stage, short_name
+                            ));
+                        }
+
+                        current_tick_log
+                            .pipelines_state
+                            .insert(proc_name, status_parts.join(" "));
+                    }
                 }
-
-                current_tick_log.processor_states.insert(op_name, status);
             }
-            tick_logs.push(current_tick_log);
 
-            // E. Advance Time
+            tick_logs.push(current_tick_log);
             current_tick += 1;
 
-            // Safety break
+            // Safety break loop
             if current_tick > 10000 {
                 break;
             }
@@ -420,77 +496,78 @@ impl Reporter {
     pub fn pcs_simulation(&self, result: &SimulationResult) -> String {
         let mut buffer = StringBuffer::default();
 
-        buffer.add_line("Parallel Computer System Simulation Results:".to_string());
-        buffer.add_line("-".repeat(60));
+        buffer.add_line("Parallel Pipelined System Simulation".to_string());
+        buffer.add_line("-".repeat(100));
+
+        let conf = &result.configuration;
         buffer.add_line(format!(
-            "Configuration: Add({}), Sub({}), Mul({}), Div({})",
-            result.configuration.processors.add,
-            result.configuration.processors.sub,
-            result.configuration.processors.mul,
-            result.configuration.processors.div,
+            "Configuration: ADD: {} ({}t), SUB: {} ({}t), MUL: {} ({}t), DIV: {} ({}t)",
+            conf.processors.add,
+            conf.time.add,
+            conf.processors.sub,
+            conf.time.sub,
+            conf.processors.mul,
+            conf.time.mul,
+            conf.processors.div,
+            conf.time.div
         ));
-        buffer.add_line(format!(
-            "Costs (Ticks): Add={}, Sub={}, Mul={}, Div={}",
-            result.configuration.time.add,
-            result.configuration.time.sub,
-            result.configuration.time.mul,
-            result.configuration.time.div,
-        ));
-        buffer.add_line("-".repeat(60));
+        buffer.add_line("-".repeat(100));
 
         // Metrics
-        buffer.add_line(format!("Sequential Time (T1): {}", result.t1));
-        buffer.add_line(format!("Parallel Time (Tp):   {}", result.tp));
-        buffer.add_line(format!("Speedup (Ky):         {:.4}", result.speedup));
-        buffer.add_line(format!("Efficiency (E):       {:.4}", result.efficiency));
-        buffer.add_line("-".repeat(60));
+        buffer.add_line(format!(
+            "T1 (Seq): {:<5} | Tp (Par): {:<5} | Speedup: {:<.4} | Efficiency: {:<.4}",
+            result.t1, result.tp, result.speedup, result.efficiency
+        ));
+        buffer.add_line("-".repeat(100));
 
         // Schedule Table
         buffer.add_line(format!(
-            "{:<12} | {:<10} | {:<10} | {:<15}",
+            "{:<12} | {:<8} | {:<8} | {:<40}",
             "Processor", "Start", "End", "Operation"
         ));
-        buffer.add_line("-".repeat(60));
+        buffer.add_line("-".repeat(100));
 
-        // Sort by start time for better readability
         let mut sorted_schedule = result.schedule.clone();
         sorted_schedule.sort_by_key(|t| t.start_time);
 
         for task in sorted_schedule {
+            if task.processor_type == OperationType::Load {
+                continue;
+            }
             buffer.add_line(format!(
-                "{:<12} | {:<10} | {:<10} | {:<15}",
-                task.processor.to_string(),
+                "{:<12} | {:<8} | {:<8} | {:<40}",
+                format!("{} #{}", task.processor_type, task.processor_index + 1),
                 task.start_time,
                 task.end_time,
                 task.name
             ));
         }
 
-        buffer.add_line("\n".to_string());
-        buffer.add_line("Tick-by-Tick Execution Log:".to_string());
-        buffer.add_line("-".repeat(60));
+        buffer.add_line("\nDetailed Pipeline Log (Tick-by-Tick):".to_string());
+        buffer.add_line("-".repeat(100));
 
         for log in &result.tick_logs {
-            buffer.add_line(format!("Tick {:02}:", log.tick));
-
-            // Show Queue
-            if log.ready_queue.is_empty() {
-                buffer.add_line("  Queue: [Empty]".to_string());
-            } else {
-                buffer.add_line(format!("  Queue: {:?}", log.ready_queue));
+            // Skip trailing idle logs if queue is empty
+            if log.pipelines_state.values().all(|s| s == "Idle")
+                && log.ready_queue.is_empty()
+            {
+                continue;
             }
 
-            // Show Processors
-            // Sort keys for consistent output
-            let mut keys: Vec<&String> = log.processor_states.keys().collect();
+            buffer.add_line(format!("Tick {:02}:", log.tick + 1));
+            if !log.ready_queue.is_empty() {
+                buffer.add_line(format!("  Ready Queue: {:?}", log.ready_queue));
+            }
+
+            // Sort keys for consistent output order
+            let mut keys: Vec<_> = log.pipelines_state.keys().collect();
             keys.sort();
 
-            for proc in keys {
-                let state = match log.processor_states.get(proc) {
-                    Some(state) => state,
-                    None => unreachable!("Non-existent processor in log"),
-                };
-                buffer.add_line(format!("  {:<10}: {}", proc, state));
+            for key in keys {
+                let state = &log.pipelines_state[key];
+                // Display even if Idle, or filter out if desired.
+                // User requested state for ALL blocks.
+                buffer.add_line(format!("  {:<10}: {}", key, state));
             }
             buffer.add_line("".to_string());
         }

@@ -134,8 +134,8 @@ impl Reporter {
         buffer.add_line(format!("\nOptimal Form Found: ID #{}", best_index));
         buffer.add_line(format!("Expression: {}", best_report.canonical_string));
         buffer.add_line(format!(
-            "Metrics: Tp = {} ticks, Speedup = {:.4}, Efficiency = {:.4}",
-            best_result.tp, best_result.speedup, best_result.efficiency
+            "Metrics: T1 = {}, Tp = {} ticks, Speedup = {:.4}, Efficiency = {:.4}",
+            best_result.t1, best_result.tp, best_result.speedup, best_result.efficiency
         ));
 
         buffer.get()
