@@ -93,12 +93,19 @@ impl AbstractSyntaxTree {
                 match operation {
                     // Rule: A - S - D - F => A - (S + D + F)
                     BinaryOperationKind::Minus => {
-                        let node = AstNode::BinaryOperation {
-                            operation,
-                            left,
-                            right,
-                        };
-                        Self::optimize_subtraction_chain(node)
+                        // First we recursively transform the left and right parts
+                        let transformed_left = Self::transform_recursive(*left)?;
+                        let transformed_right = Self::transform_recursive(*right)?;
+
+                        // Creating node: A + (-B)
+                        Ok(AstNode::BinaryOperation {
+                            operation: BinaryOperationKind::Plus, // Changing operation to Plus
+                            left: Box::new(transformed_left),
+                            right: Box::new(AstNode::UnaryOperation {
+                                operation: UnaryOperationKind::Minus, // Negating the right part
+                                expression: Box::new(transformed_right),
+                            }),
+                        })
                     },
 
                     // Rule: A / S / D / F => A / (S * D * F)
@@ -138,40 +145,6 @@ impl AbstractSyntaxTree {
                 })
             },
         }
-    }
-
-    // --- Helper Functions ---
-    /// Optimizes the subtraction chain: A - B - C -> A - (B + C)
-    fn optimize_subtraction_chain(node: AstNode) -> Result<AstNode, AstError> {
-        // 1. We collect the chain: head=A, terms=[B, C]
-        let (head, terms) =
-            Self::collect_left_associative_chain(node, BinaryOperationKind::Minus);
-
-        // Recursively transform the "head"
-        let transformed_head = Self::transform_recursive(head)?;
-
-        if terms.is_empty() {
-            return Ok(transformed_head);
-        }
-
-        // Recursively transform all subtractions
-        let mut transformed_terms = Vec::new();
-        for term in terms {
-            transformed_terms.push(Self::transform_recursive(term)?);
-        }
-
-        // 2. We build the sum of the subtractions: (B + C)
-        let sum_node = Self::build_left_associative_tree(
-            transformed_terms,
-            BinaryOperationKind::Plus,
-        );
-
-        // 3. Return: A - (Sum)
-        Ok(AstNode::BinaryOperation {
-            operation: BinaryOperationKind::Minus,
-            left: Box::new(transformed_head),
-            right: Box::new(sum_node),
-        })
     }
 
     /// Optimizes the division chain: A / B / C -> A / (B * C)
