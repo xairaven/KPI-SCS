@@ -1,3 +1,3 @@
 log_format = "[$Y-$m-$D $H:$M $LEVEL] $MESSAGE"
-log_level = "WARN"
+log_level = "OFF"
 pretty_output = true
